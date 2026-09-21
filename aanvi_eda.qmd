@@ -1,0 +1,41 @@
+---
+title: "octproject"
+format: html
+author: Aanvi
+---
+
+```{r}
+library(tidyverse)
+sal <- read_csv(paste0(
+  "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
+  "datavis-36613/data/salaries.csv.gz"
+))
+```
+
+
+```{r}
+dim(sal)
+names(sal)
+#str(sal)
+summary(sal)
+colSums(is.na(sal))
+sum(duplicated(sal))
+```
+
+
+```{r}
+table(sal$employment_type)
+table(sal$experience_level)
+table(sal$company_size)
+```
+
+
+```{r}
+# cleaning as needed
+sal$experience_level <- factor(
+  sal$experience_level,
+  levels = c("EX", "SE", "MI", "EN"),
+  labels = c("Executive", "Senior", "Mid", "Entry")
+)
+```
+
