@@ -6,20 +6,34 @@ author: Aanvi
 
 ```{r}
 library(tidyverse)
+# loading in data
 sal <- read_csv(paste0(
   "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
   "datavis-36613/data/salaries.csv.gz"
 ))
 ```
 
-
 ```{r}
-dim(sal)
-names(sal)
-#str(sal)
+nrow(sal)
+sum(duplicated(sal))
+sal |>
+  filter(duplicated(sal) | duplicated(sal, fromLast = TRUE))
+sal |>
+  count(work_year)
+ggplot(sal, aes(x = factor(work_year))) +
+  geom_bar() +
+  labs(
+    x = "Report year",
+    y = "Number of salary records",
+    title = "Salary records by report year"
+  ) + theme_classic()
+str(sal)
 summary(sal)
 colSums(is.na(sal))
 sum(duplicated(sal))
+table(sal$employment_type)
+table(sal$experience_level)
+table(sal$company_size)
 ```
 
 

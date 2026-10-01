@@ -1,0 +1,88 @@
+---
+title: "aanvi_q3_graphs"
+format: html
+---
+
+```{r}
+library(tidyverse)
+# loading in data
+sal <- read_csv(paste0(
+  "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
+  "datavis-36613/data/salaries.csv.gz"
+))
+
+sal$experience_level <- factor(
+  sal$experience_level,
+  levels = c("EX", "SE", "MI", "EN"),
+  labels = c("Executive", "Senior", "Mid", "Entry")
+)
+```
+
+```{r}
+# labeling remote variable
+sal <- sal |> 
+  mutate(
+    remote = case_when(
+      remote_ratio == 0 ~ "On-Site",
+      remote_ratio == 50 ~ "Hybrid",
+      remote_ratio == 100 ~ "Fully remote"
+    ), 
+    remote = factor(
+      remote, levels = c("On-Site", "Hybrid", "Fully remote")
+    )
+  )
+
+
+# boxplot of salary by work arrangement
+ggplot(
+  sal,
+  aes(x = remote, y = salary_in_usd)
+) +
+  geom_boxplot() +
+  scale_y_log10() +
+  labs(
+    x = "Work arrangement",
+    y = "Annual salary (USD)",
+    title = "Salary distributions by work arrangement"
+  ) + theme_classic()
+```
+
+```{r}
+ggplot(sal, aes(x = remote, y = salary_in_usd)) +
+  geom_boxplot() +
+  scale_y_log10() +
+  facet_wrap(~ experience_level) +
+  labs(
+    x = "Work arrangement",
+    y = "Annual salary (USD)",
+    title = "Salary by work arrangement within experience level"
+  ) + theme_classic()
+```
+
+```{r}
+# ggplot(sal, aes(x = salary_in_usd, fill = remote)) +
+#   geom_density(alpha = 0.4) +
+#   scale_x_log10() +
+#   labs(
+#     x = "Annual salary (USD)",
+#     y = "Density",
+#     fill = "Work arrangement",
+#     title = "Salary distributions overlap across work arrangements"
+#   )
+# 
+
+ggplot(
+  sal,
+  aes(x = salary_in_usd, fill = remote)
+) +
+  geom_density(alpha = 0.4) +
+  scale_x_log10() +
+  facet_wrap(~ experience_level) +
+  labs(
+    x = "Annual salary (USD)",
+    y = "Density",
+    fill = "Work arrangement",
+    title = "Salary distributions by work arrangement and experience"
+  ) + theme_classic()
+```
+
