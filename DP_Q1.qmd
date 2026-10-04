@@ -1,0 +1,374 @@
+---
+title: "DataVIs"
+date: today
+format:
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+# loading in data
+sal <- read_csv(paste0(
+  "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
+  "datavis-36613/data/salaries.csv.gz"
+))
+```
+
+
+
+```{r}
+# cleaning as needed
+sal$experience_level <- factor(
+  sal$experience_level,
+  levels = c("EX", "SE", "MI", "EN"),
+  labels = c("Executive", "Senior", "Mid", "Entry")
+)
+```
+
+
+
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+#| out-width: "100%"
+salary_growth <- sal |>
+  group_by(work_year, experience_level) |>
+  summarise(
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  )
+
+salary_growth |>
+  ggplot(
+    aes(
+      x = work_year,
+      y = median_salary,
+      color = experience_level,
+      group = experience_level
+    )
+  ) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = 2020:2025) +
+  scale_y_continuous(labels = scales::label_dollar()) +
+  labs(
+    title = "Data & AI Salary Growth by Experience Level",
+    subtitle = "Median annual salary, 2020–2025",
+    x = "Year",
+    y = "Median Salary (USD)",
+    color = "Experience Level"
+  ) +
+  theme_minimal()
+```
+### Data & AI Salary Growth by Experience Level
+- Median salaries generally increased from 2020 through 2024 for entry-, mid-, and senior-level professionals, while executive salaries were more variable over time. All four experience levels show a slight decline from 2024 to 2025, although salaries remain substantially higher at more senior levels. For an executive-search client, this shows both the long-term upward compensation trend and the salary premium associated with recruiting more experienced talent.
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+#| out-width: "100%"
+# Experience-level growth
+experience_growth <- sal |>
+  filter(work_year %in% c(2024, 2025)) |>
+  group_by(experience_level, work_year) |>
+  summarise(
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  pivot_wider(
+    names_from = work_year,
+    values_from = median_salary,
+    names_prefix = "salary_"
+  ) |>
+  mutate(
+    growth = (salary_2025 - salary_2024) / salary_2024,
+    direction = if_else(growth > 0, "Growing", "Declining")
+  )
+
+experience_growth |>
+  ggplot(aes(
+    x = experience_level,
+    y = growth,
+    fill = direction
+  )) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = scales::percent(growth, accuracy = 0.1)),
+    vjust = ifelse(experience_growth$growth >= 0, -0.4, 1.4)
+  ) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_fill_manual(
+    values = c(
+      "Growing" = "steelblue",
+      "Declining" = "tomato"
+    ),
+    guide = "none"
+  ) +
+  labs(
+    title = "Salary Growth by Experience Level",
+    subtitle = "Change in median salary from 2024 to 2025",
+    x = "Experience Level",
+    y = "Change in Median Salary"
+  ) +
+  theme_minimal()
+```
+### Salary Growth by Experience Level, 2024–2025
+- Median salaries declined across every experience level from 2024 to 2025, with Entry experiencing the largest decrease at 5.6%, followed by Mid at 4.2%, Executive at 3.5%, and Senior at 3.0%. This suggests that the recent decline is not isolated to one career stage, although senior-level compensation appears relatively more stable. Recruiters can use these changes when benchmarking current offers rather than assuming that the longer-term salary growth continued into 2025.
+
+
+
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+#| out-width: "100%"
+# Overall growth by job title
+role_growth <- sal |>
+  filter(work_year %in% c(2024, 2025)) |>
+  group_by(job_title, work_year) |>
+  summarise(
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  filter(n >= 30) |>
+  select(job_title, work_year, median_salary) |>
+  pivot_wider(
+    names_from = work_year,
+    values_from = median_salary,
+    names_prefix = "salary_"
+  ) |>
+  drop_na() |>
+  mutate(
+    growth = (salary_2025 - salary_2024) / salary_2024,
+    direction = if_else(growth > 0, "Growing", "Declining")
+  )
+
+role_growth_plot <- role_growth |>
+  slice_max(growth, n = 10) |>
+  bind_rows(
+    role_growth |>
+      slice_min(growth, n = 10)
+  )
+
+role_growth_plot |>
+  ggplot(aes(
+    x = growth,
+    y = reorder(job_title, growth),
+    fill = direction
+  )) +
+  geom_col() +
+  scale_x_continuous(labels = scales::label_percent()) +
+  scale_fill_manual(
+    values = c(
+      "Growing" = "steelblue",
+      "Declining" = "tomato"
+    )
+  ) +
+  labs(
+    title = "Salary Growth by Data & AI Role",
+    subtitle = "Largest changes in median salary from 2024 to 2025",
+    x = "Change in Median Salary",
+    y = "Job Title",
+    fill = NULL,
+    caption = "Includes roles with at least 30 salary records in both years."
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    axis.text.y = element_text(size = 10)
+  )
+```
+
+### Salary Growth by Data & AI Role
+- Salary changes vary considerably across individual roles even though overall experience-level medians declined. Insight Analyst shows the strongest positive change among the displayed roles, while Prompt Engineer shows the largest decline, with several other roles falling on both sides of zero. This variation shows why recruiters should evaluate compensation at the job-title level rather than relying only on broad market averages when deciding which talent segments to prioritize.
+
+
+```{r}
+# Growth by job title within each experience level
+role_growth_exp <- sal |>
+  filter(work_year %in% c(2024, 2025)) |>
+  group_by(experience_level, job_title, work_year) |>
+  summarise(
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  filter(n >= 30) |>
+  select(experience_level, job_title, work_year, median_salary) |>
+  pivot_wider(
+    names_from = work_year,
+    values_from = median_salary,
+    names_prefix = "salary_"
+  ) |>
+  drop_na() |>
+  mutate(
+    growth = (salary_2025 - salary_2024) / salary_2024,
+    direction = if_else(growth > 0, "Growing", "Declining")
+  )
+```
+```{r}
+
+role_growth_exp |>
+  filter(
+    experience_level == "Entry",
+    abs(growth) > 0.05
+  ) |>
+  ggplot(aes(
+    x = growth,
+    y = reorder(job_title, growth),
+    fill = direction
+  )) +
+  geom_col() +
+  scale_x_continuous(labels = scales::label_percent()) +
+  scale_fill_manual(
+    values = c(
+      "Growing" = "steelblue",
+      "Declining" = "tomato"
+    )
+  ) +
+  labs(
+    title = "Salary Growth for Entry-Level Data & AI Roles",
+    subtitle = "Change in median salary from 2024 to 2025",
+    x = "Change in Median Salary",
+    y = "Job Title",
+    fill = NULL,
+    caption = "Includes roles with at least 30 salary records in both years."
+  ) +
+  theme_minimal()
+```
+### Entry-Level Roles
+- Entry-level salary growth varies substantially by role: BI Analyst shows the strongest increase at close to 30%, while most of the displayed entry-level roles experienced declines. Research Analyst, Data Specialist, and Research Engineer are among the roles with the largest decreases. For recruiters, this suggests that even within the entry-level market, compensation trends differ considerably by specialization and should be benchmarked separately.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+#| out-width: "100%"
+role_growth_exp |>
+  filter(
+    experience_level == "Mid",
+    abs(growth) > 0.05
+  ) |>
+  ggplot(aes(
+    x = growth,
+    y = reorder(job_title, growth),
+    fill = growth > 0
+  )) +
+  geom_col() +
+  scale_x_continuous(labels = scales::label_percent()) +
+  scale_fill_manual(
+    values = c("TRUE" = "steelblue", "FALSE" = "tomato"),
+    breaks = c(FALSE, TRUE),
+    labels = c("Declining", "Growing")
+  ) +
+  labs(
+    title = "Salary Growth for Mid-Level Data & AI Roles",
+    subtitle = "Change in median salary from 2024 to 2025",
+    x = "Change in Median Salary",
+    y = "Job Title",
+    fill = NULL,
+    caption = "Includes roles with at least 30 salary records in both years."
+  ) +
+  theme_minimal()
+```
+### Mid-Level Roles
+- Mid-level roles also show mixed salary movement, with Business Intelligence Engineer, Platform Engineer, and AI Engineer among the strongest-growing roles. In contrast, Site Reliability Engineer, Backend Engineer, and Cloud Engineer experienced some of the largest declines among the displayed positions. This indicates that the overall decline in mid-level compensation masks meaningful differences between specialties, which can help recruiters identify areas where compensation is becoming more competitive.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+#| out-width: "100%"
+role_growth_exp |>
+  filter(
+    experience_level == "Senior",
+    abs(growth) > 0.05
+  ) |>
+  ggplot(aes(
+    x = growth,
+    y = reorder(job_title, growth),
+    fill = growth > 0
+  )) +
+  geom_col() +
+  scale_x_continuous(labels = scales::label_percent()) +
+  scale_fill_manual(
+    values = c("TRUE" = "steelblue", "FALSE" = "tomato"),
+    breaks = c(FALSE, TRUE),
+    labels = c("Declining", "Growing")
+  ) +
+  labs(
+    title = "Salary Growth for Senior Data & AI Roles",
+    subtitle = "Change in median salary from 2024 to 2025",
+    x = "Change in Median Salary",
+    y = "Job Title",
+    fill = NULL,
+    caption = "Includes roles with at least 30 salary records in both years."
+  ) +
+  theme_minimal()
+```
+
+### Senior Roles
+- Senior-level compensation varies widely by role, with Applied Scientist showing the largest increase at more than 20%, followed by roles such as Data Specialist and Machine Learning Scientist. At the other end, AI Developer and Product Analyst experienced some of the largest declines. For an executive-search firm, these differences can help identify senior specialties where compensation is rising and where competitive offers may be particularly important for attracting candidates.
+
+
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+#| out-width: "100%"
+role_growth_exp |>
+  filter(
+    experience_level == "Executive",
+    abs(growth) > 0.05
+  ) |>
+  ggplot(aes(
+    x = growth,
+    y = reorder(job_title, growth),
+    fill = growth > 0
+  )) +
+  geom_col() +
+  scale_x_continuous(labels = scales::label_percent()) +
+  scale_fill_manual(
+    values = c("TRUE" = "steelblue", "FALSE" = "tomato"),
+    breaks = c(FALSE, TRUE),
+    labels = c("Declining", "Growing")
+  ) +
+  labs(
+    title = "Salary Growth for Executive Data & AI Roles",
+    subtitle = "Change in median salary from 2024 to 2025",
+    x = "Change in Median Salary",
+    y = "Job Title",
+    fill = NULL,
+    caption = "Includes roles with at least 30 salary records in both years."
+  ) +
+  theme_minimal()
+```
+### Executive Roles
+- Executive-level results are mixed despite the overall 3.5% decline in executive median salary. Manager, Data Analyst, and Software Engineer show positive salary growth, while Head of Data, Data Scientist, Data Engineer, and Business Intelligence declined, with Head of Data experiencing the largest decrease among the displayed executive roles. This suggests that executive compensation trends depend heavily on the specific role, making title-level benchmarking important when developing an executive candidate pipeline.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
