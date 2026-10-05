@@ -21,8 +21,6 @@ sal <- read_csv(paste0(
 ))
 ```
 
-
-
 ```{r}
 # cleaning as needed
 sal$experience_level <- factor(
@@ -31,10 +29,6 @@ sal$experience_level <- factor(
   labels = c("Executive", "Senior", "Mid", "Entry")
 )
 ```
-
-
-
-
 
 ```{r}
 #| fig-width: 10
@@ -70,9 +64,10 @@ salary_growth |>
   ) +
   theme_minimal()
 ```
-### Data & AI Salary Growth by Experience Level
-- Median salaries generally increased from 2020 through 2024 for entry-, mid-, and senior-level professionals, while executive salaries were more variable over time. All four experience levels show a slight decline from 2024 to 2025, although salaries remain substantially higher at more senior levels. For an executive-search client, this shows both the long-term upward compensation trend and the salary premium associated with recruiting more experienced talent.
 
+### Data & AI Salary Growth by Experience Level
+
+- Median salaries generally increased from 2020 through 2024 for entry-, mid-, and senior-level professionals, while executive salaries were more variable over time. All four experience levels show a slight decline from 2024 to 2025, although salaries remain substantially higher at more senior levels. For an executive-search client, this shows both the long-term upward compensation trend and the salary premium associated with recruiting more experienced talent.
 
 ```{r}
 #| fig-width: 10
@@ -123,12 +118,10 @@ experience_growth |>
   ) +
   theme_minimal()
 ```
+
 ### Salary Growth by Experience Level, 2024–2025
+
 - Median salaries declined across every experience level from 2024 to 2025, with Entry experiencing the largest decrease at 5.6%, followed by Mid at 4.2%, Executive at 3.5%, and Senior at 3.0%. This suggests that the recent decline is not isolated to one career stage, although senior-level compensation appears relatively more stable. Recruiters can use these changes when benchmarking current offers rather than assuming that the longer-term salary growth continued into 2025.
-
-
-
-
 
 ```{r}
 #| fig-width: 10
@@ -193,8 +186,8 @@ role_growth_plot |>
 ```
 
 ### Salary Growth by Data & AI Role
-- Salary changes vary considerably across individual roles even though overall experience-level medians declined. Insight Analyst shows the strongest positive change among the displayed roles, while Prompt Engineer shows the largest decline, with several other roles falling on both sides of zero. This variation shows why recruiters should evaluate compensation at the job-title level rather than relying only on broad market averages when deciding which talent segments to prioritize.
 
+- Salary changes vary considerably across individual roles even though overall experience-level medians declined. Insight Analyst shows the strongest positive change among the displayed roles, while Prompt Engineer shows the largest decline, with several other roles falling on both sides of zero. This variation shows why recruiters should evaluate compensation at the job-title level rather than relying only on broad market averages when deciding which talent segments to prioritize.
 
 ```{r}
 # Growth by job title within each experience level
@@ -219,6 +212,7 @@ role_growth_exp <- sal |>
     direction = if_else(growth > 0, "Growing", "Declining")
   )
 ```
+
 ```{r}
 
 role_growth_exp |>
@@ -249,7 +243,9 @@ role_growth_exp |>
   ) +
   theme_minimal()
 ```
+
 ### Entry-Level Roles
+
 - Entry-level salary growth varies substantially by role: BI Analyst shows the strongest increase at close to 30%, while most of the displayed entry-level roles experienced declines. Research Analyst, Data Specialist, and Research Engineer are among the roles with the largest decreases. For recruiters, this suggests that even within the entry-level market, compensation trends differ considerably by specialization and should be benchmarked separately.
 
 ```{r}
@@ -283,7 +279,9 @@ role_growth_exp |>
   ) +
   theme_minimal()
 ```
+
 ### Mid-Level Roles
+
 - Mid-level roles also show mixed salary movement, with Business Intelligence Engineer, Platform Engineer, and AI Engineer among the strongest-growing roles. In contrast, Site Reliability Engineer, Backend Engineer, and Cloud Engineer experienced some of the largest declines among the displayed positions. This indicates that the overall decline in mid-level compensation masks meaningful differences between specialties, which can help recruiters identify areas where compensation is becoming more competitive.
 
 ```{r}
@@ -319,9 +317,8 @@ role_growth_exp |>
 ```
 
 ### Senior Roles
+
 - Senior-level compensation varies widely by role, with Applied Scientist showing the largest increase at more than 20%, followed by roles such as Data Specialist and Machine Learning Scientist. At the other end, AI Developer and Product Analyst experienced some of the largest declines. For an executive-search firm, these differences can help identify senior specialties where compensation is rising and where competitive offers may be particularly important for attracting candidates.
-
-
 
 ```{r}
 #| fig-width: 10
@@ -354,21 +351,7 @@ role_growth_exp |>
   ) +
   theme_minimal()
 ```
+
 ### Executive Roles
+
 - Executive-level results are mixed despite the overall 3.5% decline in executive median salary. Manager, Data Analyst, and Software Engineer show positive salary growth, while Head of Data, Data Scientist, Data Engineer, and Business Intelligence declined, with Head of Data experiencing the largest decrease among the displayed executive roles. This suggests that executive compensation trends depend heavily on the specific role, making title-level benchmarking important when developing an executive candidate pipeline.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
