@@ -1,0 +1,136 @@
+---
+title: "dataviz_project"
+output: html_document
+date: "2026-09-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+```
+
+```{r}
+salaries <- read_csv(paste0(
+  "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
+  "datavis-36613/data/salaries.csv.gz"
+))
+
+duplicate_rows <- salaries[duplicated(salaries), ]
+duplicate_df <- as.data.frame(duplicate_rows)
+duplicate_df[1,]
+duplicate_df[3,]
+
+duplicate_counts <- duplicate_df %>% count(across(everything()), sort = TRUE)
+head(duplicate_counts, n = 10)
+
+salaries$experience_level <- factor(
+  salaries$experience_level,
+  levels = c("EX", "SE", "MI", "EN"),
+  labels = c("Executive", "Senior", "Mid", "Entry")
+)
+```
+
+```{r}
+salaries |> 
+  group_by(work_year) |> 
+  summarise(n = n())
+
+exp <- salaries |> 
+  filter(
+    employment_type == "FT"
+  ) |> 
+  group_by(experience_level, work_year) |> 
+  summarize(
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    n = n(), 
+    .groups = "drop"
+  )
+
+
+ggplot(exp, aes(
+  x = work_year, 
+  y = median_salary, 
+  color = experience_level,
+  group = experience_level
+)) +
+  geom_line() + 
+  geom_point() +
+  labs(
+    title = "Median Full-Time Salary by Experience Levels, 2020-2025",
+    subtitle = "(in USD)",
+    x = "Work Year",
+    y = "Median Annual Salary (USD)",
+    color = "Experience Level",
+    caption = paste(
+      "Subset: Full-Time Employees Only\n",
+      "Limitations: Some experience-level/year combinations have",
+      "relatively few observations, so their medians and trends should",
+      "be interpreted with caution."
+    )
+  ) + 
+  theme_classic()
+
+hist(salaries$salary_in_usd)
+```
+```{r}
+library(plotly)
+
+salaries_grouped <- salaries |> 
+  filter(
+    employment_type == "FT"
+  ) |> 
+  group_by(experience_level, work_year) |> 
+  summarise(count = n(), 
+            average_salary = mean(salary_in_usd))
+fig <- salaries_grouped %>%
+  plot_ly(
+    x = ~ average_salary, 
+    #y = ~count, 
+    size = ~count, 
+    color = ~experience_level, 
+    frame = ~work_year, 
+    text = ~paste(
+      "Experience Level:", experience_level,
+      "<br>Count:", count,
+      "<br>Average Salary: $", format(round(average_salary, 2), big.mark = ",", nsmall = 2)
+    ),
+    hoverinfo = "text",
+    type = 'scatter',
+    mode = 'markers',
+    marker = list(
+      sizemode = "diameter",
+      sizeref = 0.9
+    )
+  )
+fig <- fig %>% layout(
+    xaxis = list(
+      type = "log"
+    )
+  )
+fig <- fig %>%
+  animation_opts(
+    1000, easing = "elastic", redraw = FALSE
+  )
+
+fig
+```
+
+```{r}
+library(stringr)
+
+#unique(salaries$job_title) 
+example <- salaries |> 
+  filter(str_detect(job_title, "Data Scie"))
+
+example2 <- salaries |> 
+  filter(str_detect(job_title, "Analy"))
+
+example3 <- salaries |> 
+  filter(str_detect(job_title, "Engin"))
+
+#unique(example$job_title)
+
+#unique(salaries$job_title)
+```
+
