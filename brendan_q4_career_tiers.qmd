@@ -1,0 +1,295 @@
+---
+title: "Q4: Financial return of progressing through career tiers"
+author: "Brendan"
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+# load the packages used for wrangling, plotting, and tables
+library(tidyverse)
+library(scales)
+library(knitr)
+
+# make the bootstrap below reproducible
+set.seed(2026)
+
+# read the raw salary file that is stored in the repo
+sal <- read_csv("salaries.csv", show_col_types = FALSE)
+
+# same recode the rest of the team uses, but ordered Entry -> Executive so the
+# tiers read left to right in the order of the question
+sal <- sal |>
+  mutate(
+    experience_level = factor(
+      experience_level,
+      levels = c("EN", "MI", "SE", "EX"),
+      labels = c("Entry", "Mid", "Senior", "Executive")
+    )
+  )
+
+# MAIN data: full-time roles, 2024-2025, every employer country,
+# duplicate rows kept (this matches the team's current cleaned data)
+main <- sal |>
+  filter(employment_type == "FT", work_year %in% c(2024, 2025))
+
+# SENSITIVITY 1: same as main, but exact duplicate rows dropped
+main_dedup <- main |> distinct()
+
+# SENSITIVITY 2: same as main, but only employers located in the US
+main_us <- main |> filter(company_location == "US")
+```
+
+```{r}
+#| label: tier-stats
+# summarise one dataset into median / quartiles / n for each tier,
+# then add the % step-up from the previous tier and the multiple of Entry pay
+tier_stats <- function(df) {
+  df |>
+    group_by(experience_level) |>
+    summarise(
+      median = median(salary_in_usd),          # typical salary in the tier
+      q25 = quantile(salary_in_usd, 0.25),     # bottom of the middle 50%
+      q75 = quantile(salary_in_usd, 0.75),     # top of the middle 50%
+      n = n(),                                 # number of records in the tier
+      .groups = "drop"
+    ) |>
+    arrange(experience_level) |>
+    mutate(
+      step_pct = median / lag(median) - 1,     # gain over the tier below
+      vs_entry = median / first(median)        # multiple of Entry pay
+    )
+}
+
+# tier summary for the main data (used by the plots below)
+tiers <- tier_stats(main)
+```
+
+```{r}
+#| label: bootstrap
+# number of bootstrap resamples
+B <- 2000
+
+# split the main salaries by tier so each tier is resampled on its own
+by_tier <- split(main$salary_in_usd, main$experience_level)
+
+# one bootstrap replicate: resample each tier with replacement, take its median,
+# then compute the three step-up percentages
+one_rep <- function() {
+  med <- sapply(by_tier, function(x) median(sample(x, length(x), replace = TRUE)))
+  c(
+    `Entry -> Mid`      = med[["Mid"]] / med[["Entry"]] - 1,
+    `Mid -> Senior`     = med[["Senior"]] / med[["Mid"]] - 1,
+    `Senior -> Executive` = med[["Executive"]] / med[["Senior"]] - 1
+  )
+}
+
+# run all replicates (each column of the result is one replicate)
+boot <- replicate(B, one_rep())
+
+# 95% percentile interval for each step-up
+boot_ci <- tibble(
+  transition = rownames(boot),
+  lo = apply(boot, 1, quantile, 0.025),
+  hi = apply(boot, 1, quantile, 0.975)
+)
+```
+
+```{r}
+#| label: fig-ladder
+#| fig-width: 9
+#| fig-height: 6
+# the three transitions with their step-up % and the midpoint used to place labels
+steps <- tiers |>
+  mutate(
+    prev_median = lag(median),
+    mid_y = (median + prev_median) / 2,
+    x_mid = as.numeric(experience_level) - 0.5,
+    label = paste0("+", percent(step_pct, accuracy = 1))
+  ) |>
+  filter(!is.na(step_pct))
+
+ggplot(tiers, aes(x = experience_level, y = median)) +
+  # grey vertical bar = middle 50% of salaries in the tier (the spread)
+  geom_linerange(aes(ymin = q25, ymax = q75), color = "grey70", linewidth = 4) +
+  # line joining the tier medians so the staircase shape is visible
+  geom_line(aes(group = 1), color = "#2b6a8a", linewidth = 1) +
+  # point = tier median
+  geom_point(color = "#2b6a8a", size = 4) +
+  # median value printed to the left of each point
+  geom_text(aes(label = dollar(median)), hjust = 1.35, size = 3.6) +
+  # % gain between tiers printed on the segment between them
+  geom_label(data = steps, aes(x = x_mid, y = mid_y, label = label),
+             inherit.aes = FALSE, size = 4, fontface = "bold",
+             label.size = 0, fill = "white", color = "#2b6a8a", nudge_y = -9000) +
+  scale_y_continuous(labels = dollar, limits = c(0, NA),
+                     expand = expansion(mult = c(0, 0.05))) +
+  labs(
+    title = "Every promotion pays, but each step pays less than the one before",
+    subtitle = "Median annual salary by experience tier; grey bars show the middle 50% of salaries",
+    x = NULL, y = "Annual salary (USD)",
+    caption = paste0("Full-time roles, 2024-2025, all employer countries, nominal USD. ",
+                     "Different people at each tier (cross-section), not one person's career.")
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+#| label: fig-heatmap
+#| fig-width: 9
+#| fig-height: 7
+# keep only job titles with at least 30 records in every tier so each step-up is trustworthy
+enough <- main |>
+  count(job_title, experience_level) |>
+  pivot_wider(names_from = experience_level, values_from = n, values_fill = 0) |>
+  filter(Entry >= 30, Mid >= 30, Senior >= 30, Executive >= 30) |>
+  pull(job_title)
+
+# median salary by role and tier, then the % step-up for each transition
+role_steps <- main |>
+  filter(job_title %in% enough) |>
+  group_by(job_title, experience_level) |>
+  summarise(median = median(salary_in_usd), .groups = "drop") |>
+  pivot_wider(names_from = experience_level, values_from = median) |>
+  mutate(
+    `Entry -> Mid` = Mid / Entry - 1,
+    `Mid -> Senior` = Senior / Mid - 1,
+    `Senior -> Executive` = Executive / Senior - 1,
+    total = Executive / Entry                  # used to order the rows
+  ) |>
+  pivot_longer(starts_with(c("Entry ->", "Mid ->", "Senior ->")),
+               names_to = "transition", values_to = "gain") |>
+  mutate(
+    transition = factor(transition, levels = c("Entry -> Mid", "Mid -> Senior", "Senior -> Executive")),
+    job_title = fct_reorder(job_title, total)
+  )
+
+ggplot(role_steps, aes(x = transition, y = job_title, fill = gain)) +
+  # one tile per role and transition
+  geom_tile(color = "white") +
+  # print the % gain inside each tile
+  geom_text(aes(label = percent(gain, accuracy = 1),
+                color = ifelse(gain > 0.45, "white", "black")), size = 3.4) +
+  # use the colors exactly as given (white text on dark tiles, black on light)
+  scale_color_identity() +
+  scale_fill_viridis_c(option = "mako", direction = -1, end = 0.85, labels = percent,
+                       name = "Gain over\nprevious tier") +
+  labs(
+    title = "Where a promotion pays the most depends on the role",
+    subtitle = "% increase in median salary from one tier to the next, by job title",
+    x = NULL, y = NULL,
+    caption = paste0("Full-time roles, 2024-2025, all employer countries, nominal USD. ",
+                     "Only titles with at least 30 records in every tier.")
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid = element_blank())
+```
+
+```{r}
+#| label: fig-dumbbell
+#| fig-width: 10
+#| fig-height: 6
+# the six core roles used in the earlier homework plot
+core_roles <- c("Data Analyst", "Data Scientist", "Data Engineer",
+                "Machine Learning Engineer", "Software Engineer", "Product Manager")
+
+# median salary and record count for each core role and tier
+role_levels <- main |>
+  filter(job_title %in% core_roles) |>
+  group_by(job_title, experience_level) |>
+  summarise(median = median(salary_in_usd), n = n(), .groups = "drop") |>
+  filter(n >= 30) |>                                   # drop cells too thin to trust
+  mutate(job_title = fct_reorder(job_title, median, .fun = max))  # order rows by top pay
+
+# % step-up between neighbouring tiers within each role, with a label position
+role_labels <- role_levels |>
+  arrange(job_title, experience_level) |>
+  group_by(job_title) |>
+  mutate(
+    prev_tier = lag(experience_level),                 # tier directly below
+    prev_median = lag(median),                         # median of the tier below
+    step_pct = median / prev_median - 1,               # gain over the tier below
+    x_mid = (median + prev_median) / 2                 # halfway between the two dots
+  ) |>
+  ungroup() |>
+  # only label true neighbours (skips a step if a tier was dropped for low n)
+  filter(!is.na(step_pct), as.numeric(experience_level) - as.numeric(prev_tier) == 1)
+
+ggplot(role_levels, aes(x = median, y = job_title)) +
+  # grey line spans the lowest to highest tier median in each role
+  geom_line(aes(group = job_title), color = "grey75", linewidth = 1) +
+  # one dot per tier
+  geom_point(aes(color = experience_level), size = 3.5) +
+  # % step-up printed just above the line between neighbouring dots
+  geom_text(data = role_labels, aes(x = x_mid, label = percent(step_pct, accuracy = 1, style_positive = "plus")),
+            size = 2.8, vjust = -1.1, color = "grey30") +
+  scale_color_viridis_d(option = "mako", begin = 0.1, end = 0.85, direction = -1) +
+  scale_x_continuous(labels = dollar) +
+  labs(
+    title = "What each tier costs in the six core roles, and how much each step adds",
+    subtitle = "Median annual salary by tier; labels show the % gain over the tier below",
+    x = "Median annual salary (USD)", y = NULL, color = "Tier",
+    caption = paste0("Full-time roles, 2024-2025, all employer countries, nominal USD. ",
+                     "Tier/role cells with fewer than 30 records are left out.")
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+```{r}
+#| label: tbl-sensitivity
+# tier medians and step-ups for the main data and the two sensitivity versions
+sens <- bind_rows(
+  tier_stats(main)       |> mutate(version = "Main (duplicates kept)"),
+  tier_stats(main_dedup) |> mutate(version = "Duplicates dropped"),
+  tier_stats(main_us)    |> mutate(version = "US employers only")
+) |>
+  select(version, experience_level, median, step_pct, vs_entry, n)
+
+# print as a formatted table
+sens |>
+  mutate(
+    median = dollar(median),
+    step_pct = ifelse(is.na(step_pct), "-", percent(step_pct, accuracy = 1)),
+    vs_entry = paste0(round(vs_entry, 2), "x"),
+    n = comma(n)
+  ) |>
+  kable(col.names = c("Data version", "Tier", "Median salary", "Step-up", "Multiple of Entry", "Records"),
+        align = "llrrrr")
+```
+
+```{r}
+#| label: tbl-bootstrap
+# main step-ups next to their 95% bootstrap intervals
+main_steps <- tibble(
+  transition = c("Entry -> Mid", "Mid -> Senior", "Senior -> Executive"),
+  step = tiers$step_pct[-1]
+) |>
+  left_join(boot_ci, by = "transition")
+
+# print as a formatted table
+main_steps |>
+  mutate(across(c(step, lo, hi), ~ percent(.x, accuracy = 0.1))) |>
+  kable(col.names = c("Transition", "Step-up (median)", "95% CI low", "95% CI high"),
+        align = "lrrr")
+```
+
+```{r}
+#| label: appendix
+# record the data scope and cleaning decisions for the reproducibility appendix
+tibble(
+  rows_in_file = nrow(sal),
+  duplicate_rows = sum(duplicated(sal)),
+  rows_main = nrow(main),
+  rows_main_dedup = nrow(main_dedup),
+  rows_main_us = nrow(main_us)
+) |>
+  pivot_longer(everything(), names_to = "item", values_to = "value") |>
+  kable(format.args = list(big.mark = ","))
+```
