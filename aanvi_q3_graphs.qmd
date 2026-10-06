@@ -3,23 +3,26 @@ title: "aanvi_q3_graphs"
 format: html
 ---
 
+
+# setup
 ```{r}
+# this code chunk should be copied everywhere
 library(tidyverse)
+
 # loading in data
 sal <- read_csv(paste0(
   "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
   "datavis-36613/data/salaries.csv.gz"
 ))
 
+# Order experience levels by seniority
 sal$experience_level <- factor(
   sal$experience_level,
-  levels = c("EX", "SE", "MI", "EN"),
-  labels = c("Executive", "Senior", "Mid", "Entry")
+  levels = c("EN", "MI", "SE", "EX"),
+  labels = c("Entry", "Mid", "Senior", "Executive")
 )
-```
 
-```{r}
-# labeling remote variable
+# Create work arrangement variable
 sal <- sal |> 
   mutate(
     remote = case_when(
@@ -28,61 +31,412 @@ sal <- sal |>
       remote_ratio == 100 ~ "Fully remote"
     ), 
     remote = factor(
-      remote, levels = c("On-Site", "Hybrid", "Fully remote")
+      remote,
+      levels = c("On-Site", "Hybrid", "Fully remote")
+    )
+  )
+
+# Keep only full-time positions
+sal <- sal |> 
+  filter(employment_type == "FT") |> 
+  mutate(
+    log_salary = log(salary_in_usd)
+  )
+```
+
+
+# graph split by seniority level
+```{r}
+# Salary density plot
+ggplot(
+  sal,
+  aes(
+    x = salary_in_usd,
+    fill = remote,
+    color = remote
+  )
+) +
+  
+  geom_density(
+    alpha = 0.25,
+    linewidth = 0.9
+  ) +
+  
+  scale_x_log10(
+    labels = scales::label_dollar(
+      accuracy = 10000
+    )
+  ) +
+  
+  facet_wrap(
+    ~ experience_level,
+    nrow = 1
+  ) +
+  
+  scale_fill_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+  
+  scale_color_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+  
+  labs(
+    title = "Salary Distributions by Work Arrangement and Experience",
+    subtitle = "Salary distributions are shown on a logarithmic scale within each experience level.",
+    x = "Annual salary (USD)",
+    y = "Density",
+    fill = "Work arrangement",
+    color = "Work arrangement",
+    caption = "A higher density within the graph indicates a larger concentration of salaries at that salary level. 
+    Experience levels are ordered by seniority, from entry level to company executives."
+  ) +
+  
+  theme_classic(base_size = 13) +
+  
+  theme(
+    legend.position = "bottom",
+    
+    plot.title = element_text(
+      face = "bold",
+      size = 17
+    ),
+    
+    plot.subtitle = element_text(
+      size = 11,
+      color = "gray30"
+    ),
+    
+    axis.title = element_text(
+      face = "bold"
+    ),
+    
+    axis.text = element_text(
+      color = "gray20"
+    ),
+    
+    strip.background = element_rect(
+      fill = "gray95",
+      color = NA
+    ),
+    
+    strip.text = element_text(
+      face = "bold",
+      size = 11
+    ),
+    
+    panel.grid.major.y = element_line(
+      color = "gray90",
+      linewidth = 0.4
+    ),
+    
+    panel.grid.minor = element_blank(),
+    
+    legend.title = element_text(
+      face = "bold"
+    ),
+    
+    plot.caption = element_text(
+      hjust = 0,
+      color = "gray40",
+      size = 9
     )
   )
 
 
-# boxplot of salary by work arrangement
-ggplot(
-  sal,
-  aes(x = remote, y = salary_in_usd)
-) +
-  geom_boxplot() +
-  scale_y_log10() +
-  labs(
-    x = "Work arrangement",
-    y = "Annual salary (USD)",
-    title = "Salary distributions by work arrangement"
-  ) + theme_classic()
+
 ```
 
-```{r}
-ggplot(sal, aes(x = remote, y = salary_in_usd)) +
-  geom_boxplot() +
-  scale_y_log10() +
-  facet_wrap(~ experience_level) +
-  labs(
-    x = "Work arrangement",
-    y = "Annual salary (USD)",
-    title = "Salary by work arrangement within experience level"
-  ) + theme_classic()
-```
 
+# graph without seniority level
 ```{r}
-# ggplot(sal, aes(x = salary_in_usd, fill = remote)) +
-#   geom_density(alpha = 0.4) +
-#   scale_x_log10() +
-#   labs(
-#     x = "Annual salary (USD)",
-#     y = "Density",
-#     fill = "Work arrangement",
-#     title = "Salary distributions overlap across work arrangements"
-#   )
-# 
-
 ggplot(
   sal,
-  aes(x = salary_in_usd, fill = remote)
+  aes(
+    x = salary_in_usd,
+    fill = remote,
+    color = remote
+  )
 ) +
-  geom_density(alpha = 0.4) +
-  scale_x_log10() +
-  facet_wrap(~ experience_level) +
+  geom_density(
+    alpha = 0.25,
+    linewidth = 0.9
+  ) +
+  scale_x_log10(
+    labels = scales::label_dollar(accuracy = 10000)
+  ) +
+  scale_fill_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+  scale_color_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
   labs(
+    title = "Salary Distributions by Work Arrangement",
+    subtitle = "Comparing distributions of salary across on-site, hybrid, and fully remote positions",
     x = "Annual salary (USD)",
     y = "Density",
     fill = "Work arrangement",
-    title = "Salary distributions by work arrangement and experience"
-  ) + theme_classic()
+    color = "Work arrangement"
+    #caption = "All experience levels are combined."
+  ) +
+  theme_classic(base_size = 13) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold", size = 17),
+    plot.subtitle = element_text(size = 11, color = "gray30"),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(color = "gray20"),
+    panel.grid.major.y = element_line(
+      color = "gray90",
+      linewidth = 0.4
+    ),
+    panel.grid.minor = element_blank(),
+    legend.title = element_text(face = "bold"),
+    plot.caption = element_text(
+      hjust = 0,
+      color = "gray40",
+      size = 9
+    )
+  )
+```
+
+
+
+
+
+
+# boxplot graph
+
+```{r}
+# Label remote variable
+sal <- sal |> 
+  mutate(
+    remote = case_when(
+      remote_ratio == 0 ~ "On-Site",
+      remote_ratio == 50 ~ "Hybrid",
+      remote_ratio == 100 ~ "Fully remote"
+    ), 
+    remote = factor(
+      remote,
+      levels = c("On-Site", "Hybrid", "Fully remote")
+    )
+  )
+
+
+# Boxplot of salary by work arrangement
+ggplot(
+  sal,
+  aes(x = remote, y = salary_in_usd, fill = remote)
+) +
+  
+  geom_boxplot(
+    width = 0.55,
+    alpha = 0.75,
+    outlier.alpha = 0.15,
+    outlier.size = 1
+  ) +
+  
+  # Show median as a white point
+  stat_summary(
+    fun = median,
+    geom = "point",
+    shape = 21,
+    size = 3,
+    fill = "white"
+  ) +
+  
+  # Logarithmic y-axis
+  scale_y_log10(
+    breaks = c(
+      10000,
+      30000,
+      50000,
+      100000,
+      200000,
+      300000,
+      500000
+    ),
+    labels = scales::label_dollar(
+      accuracy = 1000
+    )
+  ) +
+  
+  # Colors
+  scale_fill_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+  
+  labs(
+    title = "Salary Distributions by Work Arrangement",
+    subtitle = "Median salaries are approximately $148K for on-site, $70K for hybrid, and $145K for \nfully remote roles",
+    x = "Work arrangement",
+    y = "Annual salary (USD)",
+    caption = "Note: Salaries are displayed on a logarithmic scale to improve a viewer's understanding of comparison across 
+    wide salary ranges.") +
+  
+  theme_classic(base_size = 13) +
+  theme(
+    legend.position = "none",
+    
+    plot.title = element_text(
+      face = "bold",
+      size = 17
+    ),
+    
+    plot.subtitle = element_text(
+      size = 11,
+      color = "gray30"
+    ),
+    
+    axis.title = element_text(
+      face = "bold"
+    ),
+    
+    axis.text = element_text(
+      color = "gray20"
+    ),
+    
+    plot.caption = element_text(
+      hjust = 0,
+      color = "gray40",
+      size = 9
+    ),
+    
+    panel.grid.major.y = element_line(
+      color = "gray90",
+      linewidth = 0.4
+    ),
+    
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+
+
+
+```{r}
+ggplot(
+  sal,
+  aes(
+    x = salary_in_usd,
+    fill = remote,
+    color = remote
+  )
+) +
+  
+  geom_density(
+    alpha = 0.25,
+    linewidth = 0.9
+  ) +
+  
+  scale_x_log10(
+    labels = scales::label_dollar(
+      accuracy = 10000
+    )
+  ) +
+  
+  facet_wrap(
+    ~ experience_level,
+    nrow = 1
+  ) +
+  
+  scale_fill_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+  
+  scale_color_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+  
+  labs(
+    title = "Salary Distributions by Work Arrangement and Experience Level",
+    subtitle = "Salary distributions are shown on a logarithmic scale for each experience level",
+    x = "Annual salary (USD)",
+    y = "Density",
+    fill = "Work arrangement",
+    color = "Work arrangement",
+    caption = "A higher density indicates a more concentrated salary level. 
+    The experience levels are in order of seniority: Entry, Mid, Senior, Executive."
+  ) +
+  
+  theme_classic(base_size = 13) +
+  theme(
+    legend.position = "bottom",
+    
+    plot.title = element_text(
+      face = "bold",
+      size = 17
+    ),
+    
+    plot.subtitle = element_text(
+      size = 11,
+      color = "gray30"
+    ),
+    
+    axis.title = element_text(
+      face = "bold"
+    ),
+    
+    axis.text = element_text(
+      color = "gray20"
+    ),
+    
+    strip.background = element_rect(
+      fill = "gray95",
+      color = NA
+    ),
+    
+    strip.text = element_text(
+      face = "bold",
+      size = 11
+    ),
+    
+    panel.grid.major.y = element_line(
+      color = "gray90",
+      linewidth = 0.4
+    ),
+    
+    panel.grid.minor = element_blank(),
+    
+    legend.title = element_text(
+      face = "bold"
+    ),
+    
+    plot.caption = element_text(
+      hjust = 0,
+      color = "gray40",
+      size = 9
+    )
+  )
 ```
 

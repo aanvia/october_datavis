@@ -1,16 +1,28 @@
 ---
-title: "model"
-format: html
+title: "Model"
+date: today
+format:
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor: visual
 ---
 
 ```{r}
-# this code chunk should be copied everywhere
 library(tidyverse)
 # loading in data
 sal <- read_csv(paste0(
   "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
   "datavis-36613/data/salaries.csv.gz"
 ))
+head(sal)
+```
+
+```{r}
 sal$experience_level <- factor(
   sal$experience_level,
   levels = c("EX", "SE", "MI", "EN"),
@@ -29,6 +41,125 @@ sal <- sal |>
   )
 sal <- sal |> 
   filter(employment_type == "FT") |> mutate(log_salary = log(salary_in_usd))
+
 ```
 
+```{r}
+sal <- sal |>
+  mutate(
+    role_group = case_when(
 
+      # Data Science
+      str_detect(
+        str_to_lower(job_title),
+        "data scientist|decision scientist|applied scientist"
+      ) ~ "Data Science",
+
+      # AI / Machine Learning
+      str_detect(
+        str_to_lower(job_title),
+        "machine learning|\\bml\\b|artificial intelligence|\\bai\\b|nlp|computer vision|deep learning|llm|prompt"
+      ) ~ "AI / Machine Learning",
+
+      # Data Engineering / Infrastructure
+      str_detect(
+        str_to_lower(job_title),
+        "data engineer|data architect|dataops|data infrastructure|data platform|data integration|etl|data pipeline|data developer"
+      ) ~ "Data Engineering / Infrastructure",
+
+      # Analytics / BI
+      str_detect(
+        str_to_lower(job_title),
+        "analyst|analytics|business intelligence|\\bbi\\b|power bi|data analysis|reporting|data visualization"
+      ) ~ "Analytics / BI",
+
+      # Research / Quantitative
+      str_detect(
+        str_to_lower(job_title),
+        "research|quantitative|statistician|statistical|computational scientist|economist|actuar|postdoctoral"
+      ) ~ "Research / Quantitative",
+
+      # Management / Product
+      str_detect(
+        str_to_lower(job_title),
+        "manager|director|head of|product manager|product owner|data lead|analytics lead"
+      ) ~ "Management / Product",
+
+      # Software / Systems Engineering
+      str_detect(
+        str_to_lower(job_title),
+        "software|developer|engineer|devops|platform|site reliability|systems|system engineer|architect|technical lead|tech lead"
+      ) ~ "Software / Systems Engineering",
+
+      TRUE ~ "Other"
+    )
+  )
+sal |>
+  count(role_group, sort = TRUE)
+
+```
+```{r}
+
+n <- nrow(sal)
+
+train_index <- sample(
+  1:n,
+  size = 0.8 * n
+)
+
+train <- sal[train_index, ]
+test  <- sal[-train_index, ]
+
+salary_model_train <- lm(
+  log(salary_in_usd) ~ experience_level +
+    company_size +
+    factor(work_year) +
+    remote_ratio +
+    role_group,
+  data = sal
+)
+
+test$pred_log_salary <- predict(
+  salary_model_train,
+  newdata = test
+)
+
+summary(salary_model_train)
+
+test$pred_salary <- exp(test$pred_log_salary)
+
+mean(abs(
+  test$salary_in_usd - test$pred_salary
+))
+```
+
+```{r}
+sal |>
+  ggplot(aes(x = role_group, y = log(salary_in_usd))) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "Salary Distribution by Role Group",
+    x = "Role Group",
+    y = "Log Salary"
+  )
+sal |>
+  group_by(role_group) |>
+  summarise(
+    n = n(),
+    median_salary = median(salary_in_usd),
+    mean_salary = mean(salary_in_usd),
+    sd_salary = sd(salary_in_usd),
+    IQR_salary = IQR(salary_in_usd)
+  ) |>
+  arrange(desc(median_salary))
+
+sal |>
+  group_by(role_group) |>
+  summarise(
+    n = n(),
+    median_log_salary = median(log(salary_in_usd)),
+    sd_log_salary = sd(log(salary_in_usd)),
+    IQR_log_salary = IQR(log(salary_in_usd))
+  )
+```
