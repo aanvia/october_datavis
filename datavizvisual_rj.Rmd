@@ -118,19 +118,45 @@ fig
 
 ```{r}
 library(stringr)
-
-#unique(salaries$job_title) 
+salaries_count <- salaries |> 
+  group_by(job_title) |> 
+  summarise(count = n()) |> 
+  arrange(desc(count))
 example <- salaries |> 
-  filter(str_detect(job_title, "Data Scie"))
+  filter(str_detect(job_title, "BI"))
+table(example$job_title)
 
 example2 <- salaries |> 
-  filter(str_detect(job_title, "Analy"))
+  filter(str_detect(job_title, "Quant"))
+table(example2$job_title)
 
-example3 <- salaries |> 
-  filter(str_detect(job_title, "Engin"))
+salaries_family_base <- salaries |> 
+  mutate(
+    role_family = case_when(
+      
+      str_detect(job_title, "Data Scie") ~ "Data Science",
+      str_detect(job_title, "Data Engin") ~ "Data Engineering",
+      str_detect(job_title, "Data Analy") ~ "Data Analyst",
+      str_detect(job_title, "Software Eng") ~ "Software Engineer",
+      TRUE ~ "Other")
+  )
+table(salaries_family_base$role_family)
 
-#unique(example$job_title)
+#how to do ai
+salaries_family_more <- salaries |> 
+  mutate(
+    role_family = case_when(
+      
+      str_detect(job_title, "Data Scie") ~ "Data Science",
+      str_detect(job_title, "Data Engin") ~ "Data Engineering",
+      str_detect(job_title, "Data Analy") ~ "Data Analyst",
+      str_detect(job_title, "Software Eng") ~ "Software Engineer",
+      str_detect(job_title, "Machine Learning") ~ "Machine Learning",
+      str_detect(job_title, regex("BI|Business Intelligence", ignore_case = TRUE)) ~ "Business Intelligence",
+      TRUE ~ "Other")
+  )
+table(salaries_family_more$role_family)
 
-#unique(salaries$job_title)
+
 ```
 
