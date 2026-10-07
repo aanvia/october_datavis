@@ -83,39 +83,104 @@ salaries_grouped <- salaries |>
   group_by(experience_level, work_year) |> 
   summarise(count = n(), 
             average_salary = mean(salary_in_usd))
+```{r}
+library(plotly)
+
+salaries_grouped <- salaries |> 
+  filter(
+    employment_type == "FT"
+  ) |> 
+  group_by(experience_level, work_year) |> 
+  summarise(count = n(), 
+            average_salary = mean(salary_in_usd))
+```{r}
+library(plotly)
+
+salaries_grouped <- salaries |> 
+  filter(
+    employment_type == "FT"
+  ) |> 
+  group_by(experience_level, work_year) |> 
+  summarise(count = n(), 
+            average_salary = mean(salary_in_usd))
+```{r}
+library(plotly)
+
+salaries_grouped <- salaries |> 
+  filter(
+    employment_type == "FT"
+  ) |> 
+  group_by(experience_level, work_year) |> 
+  summarise(count = n(), 
+            average_salary = mean(salary_in_usd))
+```{r}
+library(plotly)
+
+salaries_grouped <- salaries |> 
+  group_by(experience_level, work_year) |> 
+  summarise(count = n(), 
+            median_salary = median(salary_in_usd),
+            .groups = "drop") |>
+  mutate(Year = work_year)
 fig <- salaries_grouped %>%
   plot_ly(
-    x = ~ average_salary, 
-    #y = ~count, 
+    x = ~median_salary, 
     size = ~count, 
     color = ~experience_level, 
-    frame = ~work_year, 
+    frame = ~Year, 
     text = ~paste(
       "Experience Level:", experience_level,
       "<br>Count:", count,
-      "<br>Average Salary: $", format(round(average_salary, 2), big.mark = ",", nsmall = 2)
+      "<br>Median Salary: $",
+      format(round(median_salary, 2), big.mark = ",", nsmall = 2)
     ),
     hoverinfo = "text",
-    type = 'scatter',
-    mode = 'markers',
+    type = "scatter",
+    mode = "markers",
     marker = list(
       sizemode = "diameter",
       sizeref = 0.9
     )
   )
-fig <- fig %>% layout(
+
+fig <- fig %>% 
+  layout(
+    title = list(
+      text = paste0(
+        "Median Salary by Experience Level",
+        "<br>",
+        "<sup>Bubble size represents frequency in dataset</sup>"
+      ),
+      x = 0.5,
+      xanchor = "center"
+    ),
+    
     xaxis = list(
-      type = "log"
+      title = "Median Salary ($)"
+    ),
+    
+    yaxis = list(
+  title = "",
+  showticklabels = FALSE,
+  showgrid = FALSE,
+  zeroline = FALSE
+),
+    
+    legend = list(
+      title = list(
+        text = "Experience Level"
+      )
     )
   )
+
 fig <- fig %>%
   animation_opts(
-    1000, easing = "elastic", redraw = FALSE
+    1000,
+    easing = "elastic",
+    redraw = FALSE
   )
-
 fig
 ```
-
 ```{r}
 library(stringr)
 salaries_count <- salaries |> 
