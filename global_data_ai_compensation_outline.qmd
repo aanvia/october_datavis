@@ -8,6 +8,7 @@ format:
     toc-depth: 3
     code-fold: true
     code-summary: "Show R code"
+    code-tools: true
     fig-width: 10
     fig-height: 6
 execute:
@@ -19,8 +20,11 @@ execute:
 ```{r setup}
 #| include: false
 library(scales)
-
+library(plotly)
 library(tidyverse)
+library(knitr)
+library(car)
+
 
 # Load data
 sal <- read_csv(paste0(
@@ -108,8 +112,6 @@ sal <- sal |>
 
   We suggest the firm approve the Lockheed Martin approach and senior level pipeline. This report concludes that pay rises at every level of experience from entry, to mid level, to senior, then to executive. Senior level roles make up 57% of full time records from 2024 to 2025. We also suggest a small pilot for executive level searches, since these roles are rare in the data but have the highest median pay at $190k. The next step to investigate is Lockheed’s own openings by title, level, and clearance requirement, because some roles may require US citizenship or a security clearance, which could shrink the candidate pool. 
 
-<!-- TODO (Brendan): State the client decision, 2–3 key findings, and one-sentence recommendation. -->
-
 ## II. Data Scope and Credibility Audit
 
 ### Data Source and Scope
@@ -118,9 +120,6 @@ sal <- sal |>
 
   Within our data set, each row represents the salary associated with a specific position. It is important to note that a row is not a representation of a unique employee, employer, company, or even a specific job requisition. Furthermore, the frequency of (duplicated) records is not an indication of employer demand of any particular job title.
 
-
-<!-- TODO: Add the exact dataset URL and source citation in Chicago full-note format. -->
-
 ### Data Cleaning and Transformations
 
   The given Kaggle dataset contains no missing values within any of the columns, so we will not remove any observations due to missingness. We will, however, remove non full-time employment arrangements, as the analysis focuses on compensation patterns within full-time roles. Thus, we will remove observations that are classified as freelance (FL), contract (CT), or part-time (PT). We also retained all duplicate records, rather than automatically removing them. A duplicate row may simply represent the same position report for different employers, or even the same employer that requires many employees for the same position. In context, an identical record does not necessarily indicate a falsely-recorded observation. In fact, removing these records without further analysis could remove legitimate salary observations. We also chose to retain salary observations from companies located outside of the United States, as excluding them may restrict our analysis. To account for discrepancy in the currency of salaries, we will utilize the salary_in_usd variable throughout our analysis.
@@ -128,17 +127,9 @@ sal <- sal |>
   We transformed the remote_ratio variable into three labeled categories: On-side, Hybrid, and Full Remote. We also transformed the experience level variable into labeled categories: Entry, Mid, Senior, and executive. As mentioned earlier, we are using the salary_in_usd variable as our primary response variable. However, as this variable is strongly right-skewed, we will log that variable before moving forward with the report. Lastly, we will group role families ___
 
 
-<!-- TODO: Document the exact keyword rules for the eight role groups in the appendix. -->
-
 ### Coverage and Composition
 
   It is important to note that though this dataset does contain observations from 2020 through 2025, the actual amount of data is very different across the years. Earlier years contain much fewer observations than some of the later years. More specifically, data auditing showed that 2024 and 2025 accounted for a majority of the records, which could influence compensation trends. This will be further discussed in our limitations section later in the report. Lastly, 2025 observations may not be representative of the entirety of the year. These observations are likely not taken from the whole year, though this is not clearly specified within the set. In fact, the records within this dataset are generally concentrated in particular groups of observations. For example, a large portion of the companies we have data on are mid-sized, as opposed to small or large. Similarly, most records represent full-time positions, and the majority are associated with employees residing in the United States and companies located in the United States. Similar size imbalances are found in various other data columns, like remote-work, and experience level.
-
-
-```{r coverage-audit}
-#| eval: false
-# TODO: Optional audit table of record counts by year, experience, remote, and company size.
-```
 
 ## III. Client Questions and Compensation Landscape
 
@@ -156,7 +147,8 @@ sal <- sal |>
 
 #### Salary Growth by Job Function
 
-```{r salary-growth-function}
+```{r fig-salary-growth-function}
+#| fig-cap: "Salary Growth by Job Function: Change in Median Salary from 2024 to 2025"
 #| fig-width: 10
 #| fig-height: 6
 #| out-width: "100%"
@@ -259,7 +251,8 @@ role_group_growth |>
 
 #### Salary Growth by Individual Role
 
-```{r salary-growth-title}
+```{r fig-salary-growth-title}
+#| fig-cap: "Largest Changes in Median Salary by Data & AI Role, 2024–2025"
 #| fig-width: 10
 #| fig-height: 7
 #| out-width: "100%"
@@ -373,11 +366,12 @@ role_growth_plot |>
 
 #### Salary Trends by Experience Level, 2020–2025
 
-```{r salary-trends-experience}
+```{r fig-salary-trends-experience}
+#| fig-cap: "Median Annual Salary by Experience Level, 2020–2025"
 #| fig-width: 11
 #| fig-height: 6
 #| out-width: "100%"
-library(plotly)
+#| echo: false
 
 salaries_grouped <- sal |>
   group_by(experience_level, work_year) |>
@@ -481,10 +475,12 @@ fig
 
 #### Salary Distributions by Work Arrangement
 
-```{r remote-boxplot}
+```{r fig-remote-boxplot}
+#| fig-cap: "Salary Distributions by Work Arrangement"
 #| fig-width: 9
 #| fig-height: 6
 #| out-width: "100%"
+#| echo: false
 
 ggplot(
   sal,
@@ -555,10 +551,12 @@ Salary distributions differ across work arrangements. On-site and fully remote p
 
 #### Salary Distributions by Work Arrangement and Experience
 
-```{r remote-density-experience}
+```{r fig-remote-density-experience}
+#| fig-cap: "Salary Distributions by Experience Level and Work Arrangement"
 #| fig-width: 11
 #| fig-height: 8
 #| out-width: "100%"
+#| echo: false
 
 ggplot(
   sal,
@@ -709,8 +707,8 @@ tier_stats <- function(df) {
 tiers <- tier_stats(main)
 ```
 
-```{r}
-#| label: fig-career-progression
+```{r fig-career-progression}
+#| fig-cap: "Median Salary Progression by Experience Level, 2024–2025"
 #| fig-width: 10
 #| fig-height: 6
 #| out-width: "100%"
@@ -794,10 +792,9 @@ ggplot(tiers, aes(x = experience_level, y = median)) +
   )
 ```
 
-```{r}
-#| label: career-bootstrap
+```{r tbl-career-progression}
+#| tbl-cap: "Median Salary Increases Between Experience Levels with 95% Bootstrap Confidence Intervals"
 #| echo: false
-library(knitr)
 B <- 2000
 
 # Separate salary observations by experience level
@@ -832,9 +829,6 @@ boot_ci <- tibble(
   hi = apply(boot, 1, quantile, 0.975)
 )
 
-#| label: tbl-career-progression
-#| echo: false
-
 main_steps <- tibble(
   transition = c(
     "Entry -> Mid",
@@ -864,8 +858,8 @@ main_steps |>
 ```
 The fourth question looks at the financial return of moving from entry to mid to senior to executive. Median salary raises at each step, but the increase is smaller each time with a 48% increase from entry to mid, a 24% increase from mid to senior, and a 17% increase from senior to executive. The median salary for an entry level position is $88,300, and for executive level is $190,000. The 95% bootstrap intervals do not overlap, so the pattern of a smaller raise on each increase is a reliable claim based on this data. This describes an average change of salary, and should not be applied to any particular individual to dictate what their raise should be. 
 
-```{r}
-#| label: fig-career-by-function
+```{r fig-career-by-function}
+#| fig-cap: "Salary Progression by Job Function and Experience Level, 2024–2025"
 #| fig-width: 11
 #| fig-height: 7
 #| out-width: "100%"
@@ -1010,7 +1004,7 @@ log(Salary) = \beta_0 + \beta_1experience +
 \beta_2size + \beta_3year +
 \beta_4remoteratio + \beta_5 rolegroups + \epsilon.
 $$
-```{r}
+```{r sal-model}
 salary_model <- lm(
   log_salary ~ experience_level +
     company_size +
@@ -1024,6 +1018,29 @@ salary_model <- lm(
 ```
 
 ### Model Diagnostics
+
+
+```{r fig-model-diagnostics}
+#| fig-cap: "Regression Model Diagnostic Plots"
+#| fig-width: 10
+#| fig-height: 8
+#| eval: false
+par(mfrow = c(2, 2))
+
+plot(salary_model, which = 1)
+plot(salary_model, which = 2)
+plot(salary_model, which = 3)
+plot(salary_model, which = 5)
+
+par(mfrow = c(1, 1))
+```
+
+```{r vif-model}
+#| eval: false
+vif(salary_model)
+```
+
+
 
 
   The residuals were generally centered around zero across fitted values, although the Scale-Location plot showed some variation in residual spread. The Q-Q plot followed the reference line reasonably well through the center but showed departures in both tails, indicating that the residuals were not perfectly normally distributed. The leverage plot identified several higher-leverage observations, but no single observation appeared to dominate the overall model fit. Multicollinearity was also assessed using adjusted GVIF values, which ranged from 1.020 to 1.041, indicating little overlap among the model predictors. Overall, the diagnostics show some departures from the standard regression assumptions, so the model is used primarily to describe broad compensation associations rather than precise individual salary predictions.
@@ -1085,36 +1102,105 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 
 ## IX. Appendix: Reproducibility
 
-### Data Source and Packages
-
-```{r appendix-packages}
+### Data Set Up
+```{r setup}
+#| ref.label: "setup"
+#| echo: true
 #| eval: false
-# TODO: Dataset URL, package versions, sessionInfo()
 ```
 
-### Data Audit and Cleaning
 
-```{r appendix-cleaning}
+### Client Question 1.
+
+#### Fig 1. Salary Growth by Job Function
+```{r fig-salary-growth-function}
+#| ref.label: "fig-salary-growth-function"
+#| echo: true
 #| eval: false
-# TODO: Complete import, full-time filter, duplicate audit,
-# missingness audit, factor labels, log salary creation.
 ```
 
-### Job-Title Grouping Rules
-
-```{r appendix-role-groups}
+#### Fig 2. Salary Growth by Individual Role
+```{r fig-salary-growth-title}
+#| ref.label: "fig-salary-growth-title"
+#| echo: true
 #| eval: false
-# TODO: Full case_when() keyword rules for all eight groups.
 ```
 
-### Model Reproduction
+### Client Question 2.
 
-```{r appendix-model}
+#### Fig 3. Salary Trends by Experience Level
+```{r fig-salary-trends-experience}
+#| ref.label: "fig-salary-trends-experience"
+#| echo: true
 #| eval: false
-# TODO: Seed, train/test split, model fit, test predictions,
-# RMSE/MAE, VIF/GVIF, and any sensitivity checks.
 ```
 
-<!-- IMPORTANT: Before final rendering, replace or remove eval:false placeholders.
-     Use the cleaned data object from the shared team script, and ensure every
-     displayed graph has units, a clear subset, and sample-size notes as needed. -->
+### Client Question 3.
+
+#### Fig 4. Salary Distributions by Work Arrangement
+```{r fig-remote-boxplot}
+#| ref.label: "fig-remote-boxplot"
+#| echo: true
+#| eval: false
+```
+
+#### Fig 5. Salary Distributions by Work Arrangement and Experience
+```{r fig-remote-density-experience}
+#| ref.label: "fig-remote-density-experience"
+#| echo: true
+#| eval: false
+```
+
+### Client Question 3.
+
+#### Fig 6. Career Progression Salary Differences
+```{r career-progression}
+#| ref.label: "career-progression"
+#| echo: true
+#| eval: false
+```
+
+```{r fig-career-progression}
+#| ref.label: "fig-career-progression"
+#| echo: true
+#| eval: false
+```
+
+#### Table 1. Median Salary Increases Between Experience Levels
+```{r fig-career-progression}
+#| ref.label: "tbl-career-progression"
+#| echo: true
+#| eval: false
+```
+
+#### Fig 7. Salary Progression by Job Function and Experience Level
+```{r fig-career-by-function}
+#| ref.label: "fig-career-by-function"
+#| echo: true
+#| eval: false
+```
+
+### Modeling Approach
+
+#### Model
+```{r sal-model}
+#| ref.label: "sal-model"
+#| echo: true
+#| eval: false
+```
+
+#### Diagnostics
+```{r fig-model-diagnostics}
+#| ref.label: "fig-model-diagnostics"
+#| echo: true
+#| eval: false
+```
+```{r vif-model}
+#| ref.label: "vif-model"
+#| echo: true
+#| eval: false
+```
+
+
+
+
