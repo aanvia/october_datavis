@@ -675,12 +675,317 @@ On-site and fully remote positions have relatively similar, overlapping salary d
 #### Career Progression Salary Differences
 
 ```{r career-progression}
-#| fig-width: 11
-#| fig-height: 6
-# TODO (Brendan): Paste the career-progression visualization:
-# median salaries for Entry, Mid, Senior, Executive, with absolute
-# and/or percentage differences between adjacent levels.
+set.seed(2026)
+
+# Use existing cleaned sal dataset
+# Keep full-time positions from 2024–2025
+main <- sal |>
+  filter(work_year %in% c(2024, 2025)) |>
+  mutate(
+    experience_level = factor(
+      experience_level,
+      levels = c("Entry", "Mid", "Senior", "Executive")
+    )
+  )
+
+# Calculate median salary and IQR by experience level
+tier_stats <- function(df) {
+  df |>
+    group_by(experience_level) |>
+    summarise(
+      median = median(salary_in_usd, na.rm = TRUE),
+      q25 = quantile(salary_in_usd, 0.25, na.rm = TRUE),
+      q75 = quantile(salary_in_usd, 0.75, na.rm = TRUE),
+      n = n(),
+      .groups = "drop"
+    ) |>
+    arrange(experience_level) |>
+    mutate(
+      step_pct = median / lag(median) - 1,
+      vs_entry = median / first(median)
+    )
+}
+
+tiers <- tier_stats(main)
 ```
+
+```{r}
+#| label: fig-career-progression
+#| fig-width: 10
+#| fig-height: 6
+#| out-width: "100%"
+#| echo: false
+
+steps <- tiers |>
+  mutate(
+    prev_median = lag(median),
+    mid_y = (median + prev_median) / 2,
+    x_mid = as.numeric(experience_level) - 0.5,
+    label = paste0("+", percent(step_pct, accuracy = 1))
+  ) |>
+  filter(!is.na(step_pct))
+
+ggplot(tiers, aes(x = experience_level, y = median)) +
+  geom_linerange(
+    aes(ymin = q25, ymax = q75),
+    color = "grey70",
+    linewidth = 4
+  ) +
+  geom_line(
+    aes(group = 1),
+    color = "#2b6a8a",
+    linewidth = 1
+  ) +
+  geom_point(
+    color = "#2b6a8a",
+    size = 4
+  ) +
+  geom_text(
+    aes(label = dollar(median)),
+    hjust = 1.35,
+    size = 3.6
+  ) +
+  geom_label(
+    data = steps,
+    aes(x = x_mid, y = mid_y, label = label),
+    inherit.aes = FALSE,
+    size = 4,
+    fontface = "bold",
+    label.size = 0,
+    fill = "white",
+    color = "#2b6a8a",
+    nudge_y = -9000
+  ) +
+  scale_y_continuous(
+    labels = dollar,
+    limits = c(0, NA),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    title = "Salary Progression by Experience Level",
+    subtitle = "Median annual salary by experience level; grey bars show the middle 50% of salaries",
+    x = NULL,
+    y = "Annual salary (USD)",
+    caption = paste0(
+      "Full-time positions, 2024–2025, all employer countries. ",
+      "Cross-sectional comparisons, not individual career trajectories."
+    )
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(
+      size = 10,
+      color = "grey40",
+      margin = margin(b = 15)
+    ),
+    axis.title.y = element_text(face = "bold"),
+    axis.text = element_text(color = "grey30"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(
+      color = "grey90",
+      linewidth = 0.4
+    ),
+    plot.caption = element_text(
+      color = "grey40",
+      hjust = 0
+    )
+  )
+```
+
+```{r}
+#| label: career-bootstrap
+#| echo: false
+library(knitr)
+B <- 2000
+
+# Separate salary observations by experience level
+by_tier <- split(
+  main$salary_in_usd,
+  main$experience_level
+)
+
+# One bootstrap sample
+one_rep <- function() {
+
+  med <- sapply(
+    by_tier,
+    function(x) {
+      median(sample(x, length(x), replace = TRUE))
+    }
+  )
+
+  c(
+    "Entry -> Mid" = med[["Mid"]] / med[["Entry"]] - 1,
+    "Mid -> Senior" = med[["Senior"]] / med[["Mid"]] - 1,
+    "Senior -> Executive" = med[["Executive"]] / med[["Senior"]] - 1
+  )
+}
+
+# Bootstrap confidence intervals
+boot <- replicate(B, one_rep())
+
+boot_ci <- tibble(
+  transition = rownames(boot),
+  lo = apply(boot, 1, quantile, 0.025),
+  hi = apply(boot, 1, quantile, 0.975)
+)
+
+#| label: tbl-career-progression
+#| echo: false
+
+main_steps <- tibble(
+  transition = c(
+    "Entry -> Mid",
+    "Mid -> Senior",
+    "Senior -> Executive"
+  ),
+  step = tiers$step_pct[-1]
+) |>
+  left_join(boot_ci, by = "transition")
+
+main_steps |>
+  mutate(
+    across(
+      c(step, lo, hi),
+      ~ percent(.x, accuracy = 0.1)
+    )
+  ) |>
+  kable(
+    col.names = c(
+      "Transition",
+      "Step-up (median)",
+      "95% CI low",
+      "95% CI high"
+    ),
+    align = "lrrr"
+  )
+```
+The fourth question looks at the financial return of moving from entry to mid to senior to executive. Median salary raises at each step, but the increase is smaller each time with a 48% increase from entry to mid, a 24% increase from mid to senior, and a 17% increase from senior to executive. The median salary for an entry level position is $88,300, and for executive level is $190,000. The 95% bootstrap intervals do not overlap, so the pattern of a smaller raise on each increase is a reliable claim based on this data. This describes an average change of salary, and should not be applied to any particular individual to dictate what their raise should be. 
+
+```{r}
+#| label: fig-career-by-function
+#| fig-width: 11
+#| fig-height: 7
+#| out-width: "100%"
+#| echo: false
+
+# Median salary by job function and experience level
+role_levels <- main |>
+  group_by(role_group, experience_level) |>
+  summarise(
+    median = median(salary_in_usd, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  filter(n >= 30) |>
+  mutate(
+    role_group = fct_reorder(
+      role_group,
+      median,
+      .fun = max
+    )
+  )
+
+# Calculate salary increases between consecutive levels
+role_labels <- role_levels |>
+  arrange(role_group, experience_level) |>
+  group_by(role_group) |>
+  mutate(
+    prev_tier = lag(experience_level),
+    prev_median = lag(median),
+    step_pct = median / prev_median - 1,
+    x_mid = (median + prev_median) / 2
+  ) |>
+  ungroup() |>
+  filter(
+    !is.na(step_pct),
+    as.numeric(experience_level) -
+      as.numeric(prev_tier) == 1
+  )
+
+ggplot(
+  role_levels,
+  aes(x = median, y = role_group)
+) +
+  geom_line(
+    aes(group = role_group),
+    color = "grey75",
+    linewidth = 1
+  ) +
+  geom_point(
+    aes(color = experience_level),
+    size = 3.5
+  ) +
+  geom_text(
+    data = role_labels,
+    aes(
+      x = x_mid,
+      label = percent(
+        step_pct,
+        accuracy = 1,
+        style_positive = "plus"
+      )
+    ),
+    size = 2.8,
+    vjust = -1.1,
+    color = "grey30"
+  ) +
+  geom_text(
+    aes(
+      label = paste0(round(median / 1000), "k")
+    ),
+    size = 2.8,
+    vjust = 2.3,
+    color = "grey30"
+  ) +
+  scale_color_manual(
+    values = c(
+      "Entry" = "#8B78B7",
+      "Mid" = "#F2C14E",
+      "Senior" = "#63A65F",
+      "Executive" = "#5B8FC1"
+    )
+  ) +
+  scale_x_continuous(
+    labels = dollar
+  ) +
+  labs(
+    title = "Salary Progression by Job Function and Experience Level",
+    subtitle = "Median annual salary by experience level; labels show percentage increases between levels",
+    x = "Median annual salary (USD)",
+    y = NULL,
+    color = "Experience level",
+    caption = paste0(
+      "Full-time positions, 2024–2025, all employer countries. ",
+      "Groups with fewer than 30 records per experience level are omitted."
+    )
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(
+      size = 10,
+      color = "grey40",
+      margin = margin(b = 15)
+    ),
+    axis.title.x = element_text(face = "bold"),
+    axis.text = element_text(color = "grey30"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(
+      color = "grey90",
+      linewidth = 0.4
+    ),
+    legend.position = "right",
+    legend.title = element_text(face = "bold"),
+    plot.caption = element_text(
+      color = "grey40",
+      hjust = 0
+    )
+  )
+```
+The size of a raise appears to be highly dependent on the role. Entry to mid is the largest step up for Software/Systems Engineering (+37%), Data Engineering/Infrastructure (+44%), Data Science (+35%), and Other (+60%). Mid to senior level raises are the largest for AI/Machine Learning, Management/Product, and Research/Quantitative (all near +18%). At the senior level, AI/Machine Learning has the highest median of our three target roles at \$185k, with Data Science at \$160k, and Data Engineering at $154k. Research/Quantitative has no executive point because that group has less than 30 records in our data. 
 
 <!-- TODO: Interpret Entry→Mid, Mid→Senior, and Senior→Executive salary gaps.
      These are cross-sectional differences between positions, not observed
@@ -720,38 +1025,6 @@ salary_model <- lm(
 
 ### Model Diagnostics
 
-```{r residuals-fitted}
-#| fig-width: 9
-#| fig-height: 5
-#| eval: false
-# TODO: Residuals vs Fitted plot, e.g. plot(salary_model_train, which = 1)
-```
-
-```{r qq-residuals}
-#| fig-width: 9
-#| fig-height: 5
-#| eval: false
-# TODO: Normal Q-Q plot, e.g. plot(salary_model_train, which = 2)
-```
-
-```{r scale-location}
-#| fig-width: 9
-#| fig-height: 5
-#| eval: false
-# TODO: Scale-Location plot, e.g. plot(salary_model_train, which = 3)
-```
-
-```{r residuals-leverage}
-#| fig-width: 9
-#| fig-height: 5
-#| eval: false
-# TODO: Residuals vs Leverage, e.g. plot(salary_model_train, which = 5)
-```
-
-```{r collinearity-check}
-#| eval: false
-# TODO: car::vif(salary_model_train)
-```
 
   The residuals were generally centered around zero across fitted values, although the Scale-Location plot showed some variation in residual spread. The Q-Q plot followed the reference line reasonably well through the center but showed departures in both tails, indicating that the residuals were not perfectly normally distributed. The leverage plot identified several higher-leverage observations, but no single observation appeared to dominate the overall model fit. Multicollinearity was also assessed using adjusted GVIF values, which ranged from 1.020 to 1.041, indicating little overlap among the model predictors. Overall, the diagnostics show some departures from the standard regression assumptions, so the model is used primarily to describe broad compensation associations rather than precise individual salary predictions.
   
@@ -778,7 +1051,7 @@ The Job Function variable sets the AI /Machine Learning role family as the basel
 
   Lockheed Martin also appears to be a strong potential anchor client because of its continued focus on growth and expansion. The company is not simply maintaining its existing operations. Based on their recent public statements, they are actively investing in new technologies, specifically expanding their use of AI. We are currently seeing approximately 400 active job postings, which suggests sustained hiring demand.
 
-  Furthemore, through external market research, we have discovered that Lockheed Martin is actively expanding its use of artificial intelligence and data science to streamline operations, accelerate production, and build large-scale defense initiatives. The company recently established the Lockheed Martin AI Center (LAIC), which is dedicated to developing and implementing AI solutions across the organization. As these initiatives continue to expand, Lockheed Martin will require employees with specialized technical, quantitative, and analytical skills. This represents a strong alignment with the candidates that our company serves. The data science, statistical, and quantitative roles emerging from Lockheed Martin’s AI and technology initiatives closely match both the skill sets and career interests of our candidate pool. Furthemore, Lockheed Martin offers highly competitive compensation packages, falling much higher than the national average. All of these factors make these positions very attractive to qualified candidates, and they strengthen our own company’s credibility. 
+  Furthermore, through external market research, we have discovered that Lockheed Martin is actively expanding its use of artificial intelligence and data science to streamline operations, accelerate production, and build large-scale defense initiatives. The company recently established the Lockheed Martin AI Center (LAIC), which is dedicated to developing and implementing AI solutions across the organization. As these initiatives continue to expand, Lockheed Martin will require employees with specialized technical, quantitative, and analytical skills. This represents a strong alignment with the candidates that our company serves. The data science, statistical, and quantitative roles emerging from Lockheed Martin’s AI and technology initiatives closely match both the skill sets and career interests of our candidate pool. Furthemore, Lockheed Martin offers highly competitive compensation packages, falling much higher than the national average. All of these factors make these positions very attractive to qualified candidates, and they strengthen our own company’s credibility. 
 
 
 <!-- TODO (Brendan): Insert sourced company profile and current evidence of
@@ -788,17 +1061,22 @@ The Job Function variable sets the AI /Machine Learning role family as the basel
 
 ## VI. Limitations and Evidence Boundaries
 
-Our data is a frozen August 2025 snapshot, so it has no 2026 observations and 2025 only covers part of the year. Each row is a salary record, not a unique person or a job opening, so record counts do not measure Lockheed’s hiring demand. It is possible that out of the 52% of rows that are repeated, at least one instance might be the same person, meaning the data may not be entirely independent. Difference across tiers, role groups, and work arrangements are only associations, so we cannot say remote work raises or lowers pay. Salary is base pay in nominal USD, so it excludes bonuses, equity, and purchasing power. Pairs of employee residence and employer location are too sparse for multinational conclusions. There is a considerably smaller number of hybrid workers in the data set (313) and some role-tier combinations are small, so those results are less reliable. 
+Our first set of limitations come from properties of the data itself. Our data is a frozen August 2025 snapshot, so it has no 2026 observations and 2025 only covers part of the year. Each row is a salary record, not a unique person or a job opening. It is possible that out of the 52% of rows that are repeated, at least one instance might be the same person, meaning the data may not be entirely independent. Differences across tiers, role groups, and work arrangements are only associations, as we are not running an experimental study on salaries. Therefore, we cannot say remote work raises or lowers pay. Salary itself is the base pay in nominal USD, so it excludes bonuses, equity, and purchasing power. Pairs of employee residence and employer location are too sparse for multinational conclusions. Lastly, some variables have heavily uneven distributions in terms of counts in each factor. Some examples include the small number of hybrid workers (313), both small and large-sized companies (192 and 3902 respectively), and some role-tier combinations, so those results are less reliable. 
+
+Next are some limitations regarding the model we fit. The residual analysis raised concerns over heteroskedasticity and high-leverage observations, which limits the model’s predictive power. This is reflected in the MAE value, which is a sizable proportion of salaries at all career levels, making the prediction not particularly useful. Lastly, many of our variables were factor variables, some with multiple levels. There then can be concerns about multiple comparison testing leading to higher chances of Type I error which should be considered. What partially alleviates this issue is the fact that a majority of the factor levels had p-values much lower than any reasonable significance level. 
+
+Finally, there are some concerns regarding dataset relevance in terms of the project scope. The dataset does not mention the sector that each posting is made for, which would greatly impact the salary. Data-related postings in the defense sector would best match potential openings at Lockheed Martin, but the dataset surely includes other sectors like finance, healthcare, supply chain, and more, where salaries trend differently. Caution must be taken before immediately generalizing findings from the model to Lockheed Martin. Additionally, although observations can be made on how data-related postings overall trend, they don’t directly point to Lockheed Martin’s demand for such positions. Further research was needed to form conclusions about our company. 
+
 
 <!-- TODO: Explicitly identify any tempting but unsupported claims the team
      rejected, and distinguish global salary patterns from Lockheed-specific pay. -->
 
 ## VII. Conclusion, Approval Request, and Next Evidence
 
-<!-- TODO: Summarize 2–3 findings, recommend a specific recruiting priority,
-     discuss the tradeoff, state what approval the client should give, and
-     identify the next evidence to request (e.g. verified job postings,
-     employer pay bands, geography, security clearance requirements). -->
+  Our group has a couple next steps we believe would further our progress on this project. We would like to validate whether Lockheed Martin’s current and anticipated hiring needs align with the talent represented in our candidate pool. Based on the current data we have about the company and our candidates, skills and experiences do align. Our process for obtaining this data would include inquiring about prior hiring history, job postings, location and salary data, as well as any security clearances necessary to be a part of Lockheed Martin. 
+
+  This would involve gathering additional company-specific data, including prior hiring history, current and historical job postings, salary ranges, locations, and the technical requirements associated with relevant positions. We should also examine security clearance and U.S. citizenship requirements, as these qualifications could significantly narrow the pool of eligible candidates. Additionally, we should investigate comparable companies with publicly available hiring information to better understand industry-wide demand and identify where Lockheed Martin may face competition for specialized talent. Once this information is collected, we can compare Lockheed Martin’s requirements with our existing candidates to determine where we have the strongest fit and identify the positions where our firm can provide the most value. We can then approach Lockheed Martin to validate its current and future recruiting needs and propose a small initial recruiting pilot focused on high-priority AI, data science, machine learning, or data engineering positions. If successful, this initial engagement could provide an opportunity to establish Lockheed Martin as a long-term anchor client and expand our recruiting services across additional technical and quantitative roles.
+
 
 ## VIII References
 
