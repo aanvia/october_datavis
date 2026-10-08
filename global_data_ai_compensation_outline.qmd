@@ -104,6 +104,10 @@ sal <- sal |>
 
 ## I. Executive Summary
 
+  The executive search firm must decide where to launch its data and AI recruiting practice, and this report answers three relevant questions: which potential anchor client employer to approach first, which job titles and seniority levels to prioritize, and which pay benchmarks the firm can quote and how far they can be trusted. We recommend that the firm approach Lockheed Martin, a publicly traded Fortune 500 defense contractor, and prioritize senior level data science, machine learning, and data engineering roles, since senior is the largest tier in the data and has a median salary of about $162k.
+
+  We suggest the firm approve the Lockheed Martin approach and senior level pipeline. This report concludes that pay rises at every level of experience from entry, to mid level, to senior, then to executive. Senior level roles make up 57% of full time records from 2024 to 2025. We also suggest a small pilot for executive level searches, since these roles are rare in the data but have the highest median pay at $190k. The next step to investigate is Lockheed’s own openings by title, level, and clearance requirement, because some roles may require US citizenship or a security clearance, which could shrink the candidate pool. 
+
 <!-- TODO (Brendan): State the client decision, 2–3 key findings, and one-sentence recommendation. -->
 
 ## II. Data Scope and Credibility Audit
@@ -781,19 +785,10 @@ The Job Function variable sets the AI /Machine Learning role family as the basel
      AI investment, recruiting needs, and hiring constraints. Verify all
      figures and dates, and use Chicago full-note citations. -->
 
-### Priority Roles and Seniority Levels
-
-<!-- TODO: Name specific roles/seniority to recruit first and connect each
-     recommendation to a salary pattern AND company-specific evidence. -->
-
-### Practical Recruiting Strategy
-
-<!-- TODO: Compensation benchmarks, on-site/clearance/citizenship constraints,
-     geographic considerations, and candidate-pipeline priorities. -->
 
 ## VI. Limitations and Evidence Boundaries
 
-The dataset is an archive of reported salaries rather than a representative probability sample of the Data & AI labor market. Records are concentrated in later years and certain employer and location categories; 2025 coverage may be incomplete. Duplicate records were retained because their meaning cannot be established from the available fields. Changes in observed median salary do not necessarily measure market-wide wage growth, and the regression cannot establish that remote work causes a salary premium or penalty.
+Our data is a frozen August 2025 snapshot, so it has no 2026 observations and 2025 only covers part of the year. Each row is a salary record, not a unique person or a job opening, so record counts do not measure Lockheed’s hiring demand. It is possible that out of the 52% of rows that are repeated, at least one instance might be the same person, meaning the data may not be entirely independent. Difference across tiers, role groups, and work arrangements are only associations, so we cannot say remote work raises or lowers pay. Salary is base pay in nominal USD, so it excludes bonuses, equity, and purchasing power. Pairs of employee residence and employer location are too sparse for multinational conclusions. There is a considerably smaller number of hybrid workers in the data set (313) and some role-tier combinations are small, so those results are less reliable. 
 
 <!-- TODO: Explicitly identify any tempting but unsupported claims the team
      rejected, and distinguish global salary patterns from Lockheed-specific pay. -->
