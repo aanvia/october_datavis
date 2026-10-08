@@ -754,6 +754,17 @@ salary_model <- lm(
 <!-- NOTE: The four diagnostic plots are technical supporting displays. Decide
      with your team/instructor whether they count toward the 6–10 primary figures;
      if so, move them to a collapsed appendix or show a selected subset. -->
+     
+### Findings
+
+The Experience variable set executive as the baseline state, and created dummy variables for senior, mid, and entry levels. Keeping company size, year, remote status, and job function constant, changing to a senior level will decrease salary by an average of 17.6%. Setting the same framework for mid level and entry level positions will decrease salary by an average of 39.7% and 63.2% respectively. 
+The Company Size variable set large as the baseline state, with dummy variables for medium and small. Keeping experience, year, remote status, and job function constant, changing to a medium-sized company will decrease salary by an average of 8.7%. For small-sized companies, salary will decrease by an average of 44.4%. 
+
+The Year variable set 2020 as the baseline year, with dummy variables for years 2021 to 2025. Keeping experience, company size, remote status, and job function constant, changing to the year 2021 will decrease salary by an average of 13.5%. With the same framework for the years 2023, 2024, and 2025, salary will increase on average by 11.6%, 14.7%, and 12.2% respectively. The year 2022 was omitted, as its beta coefficient was found insignificant at an alpha level of 0.05, so we cannot be confident in making the same interpretation. 
+
+The Remote Status variable was explained in the modeling approach section earlier. Keeping experience, company size, year, and job function constant, changing to on site work to hybrid will decrease salary by an average of 57%. Changing to remote will decrease salary by 3.4% on average. 
+
+The Job Function variable sets the AI /Machine Learning role family as the baseline, with the others as dummy variables. Keeping experience, company size, year, and remote status constant, changing from the AI/Machine Learning role to the Research/Quantitative group will increase salary by an average of 1%. With the same framework, switching to other families all lead to salary decreases on average, with Analytics/BI at 40.2%, Data Engineering/Infrastructure at 23.7%, Data Science at 15.5%, Management/Product at 7.5%, Software/Systems Engineering at 6.6%, and Other at 38.5%. 
 
 ## V. Target Employer and Recruiting Playbook
 
