@@ -701,7 +701,18 @@ log(Salary) = \beta_0 + \beta_1experience +
 \beta_2size + \beta_3year +
 \beta_4remoteratio + \beta_5 rolegroups + \epsilon.
 $$
+```{r}
+salary_model <- lm(
+  log_salary ~ experience_level +
+    company_size +
+    factor(work_year) +
+    remote +
+    role_group,
+  data = sal
+)
 
+#summary(salary_model)
+```
 
 ### Model Diagnostics
 
