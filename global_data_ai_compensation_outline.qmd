@@ -1,0 +1,825 @@
+---
+title: "Global Data & AI Workforce Compensation Analytics"
+subtitle: "Executive-search compensation and recruiting strategy"
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show R code"
+    fig-width: 10
+    fig-height: 6
+execute:
+  warning: false
+  message: false
+  echo: false
+---
+
+```{r setup}
+#| include: false
+library(scales)
+
+library(tidyverse)
+
+# Load data
+sal <- read_csv(paste0(
+  "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
+  "datavis-36613/data/salaries.csv.gz"
+))
+
+sal <- sal |>
+  mutate(
+    experience_level = factor(
+      experience_level,
+      levels = c("EX", "SE", "MI", "EN"),
+      labels = c("Executive", "Senior", "Mid", "Entry")
+    ),
+    
+    remote = case_when(
+      remote_ratio == 0 ~ "On-Site",
+      remote_ratio == 50 ~ "Hybrid",
+      remote_ratio == 100 ~ "Fully remote"
+    ),
+    
+    remote = factor(
+      remote,
+      levels = c("On-Site", "Hybrid", "Fully remote")
+    ),
+    
+    log_salary = log(salary_in_usd)
+  ) |>
+  filter(employment_type == "FT")
+
+sal <- sal |>
+  mutate(
+    role_group = case_when(
+
+      # Data Science
+      str_detect(
+        str_to_lower(job_title),
+        "data scientist|decision scientist|applied scientist"
+      ) ~ "Data Science",
+
+      # AI / Machine Learning
+      str_detect(
+        str_to_lower(job_title),
+        "machine learning|\\bml\\b|artificial intelligence|\\bai\\b|nlp|computer vision|deep learning|llm|prompt"
+      ) ~ "AI / Machine Learning",
+
+      # Data Engineering / Infrastructure
+      str_detect(
+        str_to_lower(job_title),
+        "data engineer|data architect|dataops|data infrastructure|data platform|data integration|etl|data pipeline|data developer"
+      ) ~ "Data Engineering / Infrastructure",
+
+      # Analytics / BI
+      str_detect(
+        str_to_lower(job_title),
+        "analyst|analytics|business intelligence|\\bbi\\b|power bi|data analysis|reporting|data visualization"
+      ) ~ "Analytics / BI",
+
+      # Research / Quantitative
+      str_detect(
+        str_to_lower(job_title),
+        "research|quantitative|statistician|statistical|computational scientist|economist|actuar|postdoctoral"
+      ) ~ "Research / Quantitative",
+
+      # Management / Product
+      str_detect(
+        str_to_lower(job_title),
+        "manager|director|head of|product manager|product owner|data lead|analytics lead"
+      ) ~ "Management / Product",
+
+      # Software / Systems Engineering
+      str_detect(
+        str_to_lower(job_title),
+        "software|developer|engineer|devops|platform|site reliability|systems|system engineer|architect|technical lead|tech lead"
+      ) ~ "Software / Systems Engineering",
+
+      TRUE ~ "Other"
+    )
+  )
+```
+
+## I. Executive Summary
+
+<!-- TODO (Brendan): State the client decision, 2–3 key findings, and one-sentence recommendation. -->
+
+## II. Data Scope and Credibility Audit
+
+### Data Source and Scope
+
+  This analysis uses the Data Science, AI & ML Job Salaries in 2025 dataset to examine compensation patterns in salary records from years 2020 through 2025. The dataset, obtained from Kaggle, contains many different variables, such as salary, experience level, employment type and remote/hybrid/in-person status, along with information about the company itself. The goal of our analysis is to monitor compensation trends within this data, specifically focusing on careers within data science and related industries.
+
+  Within our data set, each row represents the salary associated with a specific position. It is important to note that a row is not a representation of a unique employee, employer, company, or even a specific job requisition. Furthermore, the frequency of (duplicated) records is not an indication of employer demand of any particular job title.
+
+
+<!-- TODO: Add the exact dataset URL and source citation in Chicago full-note format. -->
+
+### Data Cleaning and Transformations
+
+  The given Kaggle dataset contains no missing values within any of the columns, so we will not remove any observations due to missingness. We will, however, remove non full-time employment arrangements, as the analysis focuses on compensation patterns within full-time roles. Thus, we will remove observations that are classified as freelance (FL), contract (CT), or part-time (PT). We also retained all duplicate records, rather than automatically removing them. A duplicate row may simply represent the same position report for different employers, or even the same employer that requires many employees for the same position. In context, an identical record does not necessarily indicate a falsely-recorded observation. In fact, removing these records without further analysis could remove legitimate salary observations. We also chose to retain salary observations from companies located outside of the United States, as excluding them may restrict our analysis. To account for discrepancy in the currency of salaries, we will utilize the salary_in_usd variable throughout our analysis.
+  
+  We transformed the remote_ratio variable into three labeled categories: On-side, Hybrid, and Full Remote. We also transformed the experience level variable into labeled categories: Entry, Mid, Senior, and executive. As mentioned earlier, we are using the salary_in_usd variable as our primary response variable. However, as this variable is strongly right-skewed, we will log that variable before moving forward with the report. Lastly, we will group role families ___
+
+
+<!-- TODO: Document the exact keyword rules for the eight role groups in the appendix. -->
+
+### Coverage and Composition
+
+  It is important to note that though this dataset does contain observations from 2020 through 2025, the actual amount of data is very different across the years. Earlier years contain much fewer observations than some of the later years. More specifically, data auditing showed that 2024 and 2025 accounted for a majority of the records, which could influence compensation trends. This will be further discussed in our limitations section later in the report. Lastly, 2025 observations may not be representative of the entirety of the year. These observations are likely not taken from the whole year, though this is not clearly specified within the set. In fact, the records within this dataset are generally concentrated in particular groups of observations. For example, a large portion of the companies we have data on are mid-sized, as opposed to small or large. Similarly, most records represent full-time positions, and the majority are associated with employees residing in the United States and companies located in the United States. Similar size imbalances are found in various other data columns, like remote-work, and experience level.
+
+
+```{r coverage-audit}
+#| eval: false
+# TODO: Optional audit table of record counts by year, experience, remote, and company size.
+```
+
+## III. Client Questions and Compensation Landscape
+
+  Our analysis focuses on four main research questions that provide a broad view of compensation in the Data Science and AI labor market. Together, these questions examine where salaries are changing, how compensation differs across career levels and work arrangements, and how pay changes as professionals advance in their careers. These patterns can help an executive-search firm benchmark compensation, understand changing candidate expectations, and make more informed recruiting decisions. 
+
+  The first question is where salaries are growing. We examine changes in salary across Data Science and AI roles to identify areas experiencing the strongest salary growth. This is important because changes in salary can indicate where compensation expectations might be shifting and where firms need to remain competitive when adjusting candidates’ offers.
+
+  The second question deals with how compensation trajectories differ across career levels. We compare salary trends between Entry, Mid, Senior, and Executive employees over time to determine whether compensation has changed similarly across different career stages. These comparisons will provide more appropriate benchmarks for recruiting candidates at different experience levels while identifying the segments of the workforce that have experienced the greatest changes in pay across the years.
+
+  The third question pertains to a remote-work premium or penalty. We compare compensation across work arrangements to determine whether remote work is associated with higher or lower salaries. This relationship is useful for understanding how work arrangements relate to compensation and whether firms will need to account for remote-work status when developing competitive offers.
+
+  The final question is what is the financial return associated with progressing from Entry to Mid to Senior to Executive? We compare compensation across career levels to measure the salary increase associated with career advancement. We can also identify where the largest increases occur within these experience levels. For an executive-search firm, these differences provide useful context for understanding the value of experience and the compensation required when recruiting increasingly senior Data Science and AI professionals.
+
+### 1. Where Are Salaries Growing?
+
+#### Salary Growth by Job Function
+
+```{r salary-growth-function}
+#| fig-width: 10
+#| fig-height: 6
+#| out-width: "100%"
+
+# Salary growth by role group
+role_group_growth <- sal |>
+  filter(work_year %in% c(2024, 2025)) |>
+  group_by(role_group, work_year) |>
+  summarise(
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  select(role_group, work_year, median_salary) |>
+  pivot_wider(
+    names_from = work_year,
+    values_from = median_salary,
+    names_prefix = "salary_"
+  ) |>
+  drop_na() |>
+  mutate(
+    growth = (salary_2025 - salary_2024) / salary_2024,
+    direction = if_else(growth > 0, "Growing", "Declining")
+  )
+
+role_group_growth |>
+  ggplot(
+    aes(
+      x = growth,
+      y = reorder(role_group, growth),
+      fill = direction
+    )
+  ) +
+  geom_col(
+    width = 0.65,
+    alpha = 0.8
+  ) +
+
+  geom_vline(
+    xintercept = 0,
+    color = "grey60",
+    linewidth = 0.5
+  ) +
+
+  scale_fill_manual(
+    values = c(
+      "Growing"   = "#5B8FC1",
+      "Declining" = "#63A65F"
+    )
+  ) +
+
+  scale_x_continuous(
+    labels = scales::label_percent(accuracy = 1),
+    expand = expansion(mult = c(0.05, 0.08))
+  ) +
+
+  labs(
+    title = "Salary Growth by Job Function",
+    subtitle = "Change in median salary from 2024 to 2025",
+    x = "Change in median salary",
+    y = NULL,
+    fill = NULL
+  ) +
+
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(
+      size = 16,
+      face = "bold"
+    ),
+    plot.subtitle = element_text(
+      size = 10,
+      color = "grey40",
+      margin = margin(b = 15)
+    ),
+    axis.title.x = element_text(
+      face = "bold",
+      margin = margin(t = 10)
+    ),
+    axis.text.y = element_text(
+      size = 10,
+      color = "grey30"
+    ),
+    axis.text.x = element_text(
+      color = "grey30"
+    ),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(
+      color = "grey90",
+      linewidth = 0.4
+    ),
+    legend.position = "bottom",
+    plot.margin = margin(15, 20, 10, 15)
+  )
+```
+
+  From 2024 to 2025, salary growth varied considerably across job functions. Management/Product and Analytics/BI increased, while Data Science, AI/Machine Learning, Software/Systems Engineering, and Research/Quantitative declined. The largest increase occurred in the Other category, although this group contains roles that do not fit the primary job-function classifications. Looking within these broader groups shows even greater variation across individual roles. Insight Analyst and Quantitative Analyst experienced some of the strongest salary growth among the roles shown, while Prompt Engineer and AI Developer experienced some of the largest declines. These results suggest that recent salary changes are concentrated in particular functions and roles rather than occurring consistently across the positions represented in the data.
+
+
+#### Salary Growth by Individual Role
+
+```{r salary-growth-title}
+#| fig-width: 10
+#| fig-height: 7
+#| out-width: "100%"
+
+# Overall growth by job title
+role_growth <- sal |>
+  filter(work_year %in% c(2024, 2025)) |>
+  group_by(job_title, work_year) |>
+  summarise(
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  filter(n >= 30) |>
+  select(job_title, work_year, median_salary) |>
+  pivot_wider(
+    names_from = work_year,
+    values_from = median_salary,
+    names_prefix = "salary_"
+  ) |>
+  drop_na() |>
+  mutate(
+    growth = (salary_2025 - salary_2024) / salary_2024,
+    direction = if_else(growth > 0, "Growing", "Declining")
+  )
+
+role_growth_plot <- role_growth |>
+  slice_max(growth, n = 10) |>
+  bind_rows(
+    role_growth |>
+      slice_min(growth, n = 10)
+  )
+
+role_growth_plot |>
+  ggplot(
+    aes(
+      x = growth,
+      y = reorder(job_title, growth),
+      fill = direction
+    )
+  ) +
+  geom_col(width = 0.7, alpha = 0.8) +
+
+  scale_fill_manual(
+  values = c(
+    "Growing"   = "#5B8FC1",
+    "Declining" = "#63A65F"
+  )
+) +
+
+  scale_x_continuous(
+    labels = scales::label_percent(accuracy = 1),
+    expand = expansion(mult = c(0.05, 0.08))
+  ) +
+
+  labs(
+    title = "Salary Growth by Data & AI Role",
+    subtitle = "Largest changes in median salary from 2024 to 2025",
+    x = "Change in median salary",
+    y = NULL,
+    fill = NULL,
+    caption = "Includes roles with at least 30 salary records in both years."
+  ) +
+
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(
+      size = 16,
+      face = "bold"
+    ),
+    plot.subtitle = element_text(
+      size = 10,
+      color = "grey40",
+      margin = margin(b = 15)
+    ),
+    plot.caption = element_text(
+      size = 9,
+      color = "grey45",
+      hjust = 0,
+      margin = margin(t = 10)
+    ),
+    axis.title.x = element_text(
+      face = "bold",
+      margin = margin(t = 10)
+    ),
+    axis.text.y = element_text(
+      size = 10,
+      color = "grey30"
+    ),
+    axis.text.x = element_text(
+      color = "grey30"
+    ),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(
+      color = "grey90",
+      linewidth = 0.4
+    ),
+    legend.position = "bottom",
+    plot.margin = margin(15, 20, 10, 15)
+  )
+```
+
+  Breaking the 2024–2025 changes down further by experience level shows additional differences within job functions. Entry-level growth was led by BI Analyst, while several research and data-focused roles declined. At the mid level, Business Intelligence Engineer, Platform Engineer, and AI Engineer were among the strongest-growing roles, while several engineering roles declined. Senior-level growth was strongest for Applied Scientist, with Data Specialist and Machine Learning Scientist also increasing. Executive results were similarly mixed, with positive growth for Manager, Data Analyst, and Software Engineer despite the overall decline in executive median salary. For an executive-search firm, these results suggest that compensation benchmarks and candidate-pipeline priorities should account for both specialization and experience level rather than relying on overall salary trends.
+
+
+<!-- TODO: If you include experience-specific role-growth charts, decide whether
+     they replace an existing figure to stay within the 6–10 figure limit. -->
+
+### 2. How Do Compensation Trajectories Differ Across Career Levels?
+
+#### Salary Trends by Experience Level, 2020–2025
+
+```{r salary-trends-experience}
+#| fig-width: 11
+#| fig-height: 6
+#| out-width: "100%"
+library(plotly)
+
+salaries_grouped <- sal |>
+  group_by(experience_level, work_year) |>
+  summarise(
+    count = n(),
+    median_salary = median(salary_in_usd, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(Year = work_year)
+
+fig <- salaries_grouped |>
+  plot_ly(
+    x = ~median_salary,
+    y = ~experience_level,
+    size = ~count,
+    color = ~experience_level,
+    frame = ~Year,
+    text = ~paste0(
+      "Experience Level: ", experience_level,
+      "<br>Year: ", work_year,
+      "<br>Count: ", count,
+      "<br>Median Salary: $",
+      format(round(median_salary, 0), big.mark = ",")
+    ),
+    hoverinfo = "text",
+    type = "scatter",
+    mode = "markers",
+    marker = list(
+      sizemode = "diameter",
+      sizeref = 0.9
+    ),
+    colors = c(
+      "#5B8FC1",
+      "#63A65F",
+      "#F2C14E",
+      "#8B78B7"
+    )
+  )
+
+fig <- fig |>
+  layout(
+    title = list(
+      text = paste0(
+        "Median Salary by Experience Level",
+        "<br>",
+        "<sup>Full-time positions, 2020–2025 | Bubble size represents record count</sup>"
+      ),
+      x = 0.5,
+      xanchor = "center"
+    ),
+
+    xaxis = list(
+      title = "Median Annual Salary (USD)",
+      tickprefix = "$",
+      tickformat = ",.0f",
+      range = c(0, 250000)
+    ),
+
+    yaxis = list(
+      title = "",
+      categoryorder = "array",
+      categoryarray = c("Entry", "Mid", "Senior", "Executive")
+    ),
+
+    legend = list(
+      title = list(text = "Experience Level"),
+      orientation = "h",
+      x = 0.5,
+      xanchor = "center",
+      y = -0.42
+    ),
+
+    margin = list(
+      t = 90,
+      b = 170,
+      l = 110,
+      r = 30
+    )
+  )
+
+fig <- fig |>
+  animation_slider(
+    currentvalue = list(
+      prefix = "Year: ",
+      visible = TRUE
+    ),
+    pad = list(t = 45)
+  )
+
+fig
+```
+
+  The second question compares compensation trajectories across career levels. Median salaries for all levels increased from 2020 to 2025, except at the executive level, which remained at a similar level. However, observations for 2020 are sparse, with only 4 executive entries for representation. Additionally, if 2021 is treated as an outlier due to small sample size (n=9), salaries for executive positions seem relatively consistent in the 180-195k range. 
+
+  For the remaining three levels, median salaries increased at varying rates. Entry level salaries increased by 55.8%, mid level salaries increased by 57.5%, and senior level salaries increased by 30.6%. However, salaries for all levels decreased in 2025 relative to 2024. This may indicate a slowdown in salary growth within the Data/AI market.
+
+
+<!-- TODO (Richard): Insert final year-by-year percentage changes and sample sizes. -->
+
+### 3. Is There a Remote-Work Premium or Penalty?
+
+#### Salary Distributions by Work Arrangement
+
+```{r remote-boxplot}
+#| fig-width: 9
+#| fig-height: 6
+#| out-width: "100%"
+
+ggplot(
+  sal,
+  aes(x = remote, y = salary_in_usd, fill = remote)
+) +
+  geom_boxplot(
+    width = 0.55,
+    alpha = 0.75,
+    outlier.alpha = 0.15,
+    outlier.size = 1
+  ) +
+
+  stat_summary(
+    fun = median,
+    geom = "point",
+    shape = 21,
+    size = 3,
+    fill = "white"
+  ) +
+
+  scale_y_log10(
+    breaks = c(
+      10000, 30000, 50000, 100000,
+      200000, 300000, 500000
+    ),
+    labels = scales::label_dollar(accuracy = 1000)
+  ) +
+
+  scale_fill_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+
+  labs(
+    title = "Salary Distributions by Work Arrangement",
+    subtitle = "Annual salaries across on-site, hybrid, and fully remote positions",
+    x = "Work arrangement",
+    y = "Annual salary (USD)",
+    caption = "Full-time positions only. Salaries are displayed on a logarithmic scale."
+  ) +
+
+  theme_classic(base_size = 13) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size = 17, face = "bold"),
+    plot.subtitle = element_text(size = 11, color = "gray30"),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(color = "gray20"),
+    panel.grid.major.y = element_line(
+      color = "gray90",
+      linewidth = 0.4
+    ),
+    panel.grid.minor = element_blank(),
+    plot.caption = element_text(
+      hjust = 0,
+      color = "gray40",
+      size = 9
+    )
+  )
+```
+
+Salary distributions differ across work arrangements. On-site and fully remote positions have relatively similar median salaries, standing at approximately $148,000 and $145,000 respectively. Hybrid positions, on the other hand, have a noticeably low median salary value of around $70,000. The on-side and fully remote roles also seem to have greater variability within their salary distributions, and a generally higher amount of outliers when compared to hybrid work roles.
+
+
+
+#### Salary Distributions by Work Arrangement and Experience
+
+```{r remote-density-experience}
+#| fig-width: 11
+#| fig-height: 8
+#| out-width: "100%"
+
+ggplot(
+  sal,
+  aes(
+    x = log_salary,
+    fill = remote,
+    color = remote
+  )
+) +
+  geom_density(
+    alpha = 0.25,
+    linewidth = 0.9
+  ) +
+
+  facet_wrap(
+    ~ experience_level,
+    ncol = 2
+  ) +
+
+  scale_x_continuous(
+    breaks = log(c(30000, 100000, 300000)),
+    labels = scales::label_dollar(
+      scale = 1e-3,
+      suffix = "K"
+    )(c(30000, 100000, 300000))
+  ) +
+
+  scale_fill_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+
+  scale_color_manual(
+    values = c(
+      "On-Site" = "#4C78A8",
+      "Hybrid" = "#F2CF5B",
+      "Fully remote" = "#59A14F"
+    )
+  ) +
+
+  labs(
+    title = "Salary Distributions by Experience Level and Work Arrangement",
+    subtitle = "Comparison of salary distributions within each experience level",
+    x = "Annual salary (USD, logarithmic scale)",
+    y = "Density",
+    fill = "Work arrangement",
+    color = "Work arrangement",
+    caption = "Full-time positions only. Density curves are estimated using log salary."
+  ) +
+
+  theme_classic(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+
+    plot.title = element_text(
+      size = 17,
+      face = "bold"
+    ),
+
+    plot.subtitle = element_text(
+      size = 11,
+      color = "gray30",
+      margin = margin(b = 12)
+    ),
+
+    axis.title = element_text(
+      face = "bold"
+    ),
+
+    axis.text = element_text(
+      color = "gray20"
+    ),
+
+    strip.background = element_rect(
+      fill = "gray95",
+      color = NA
+    ),
+
+    strip.text = element_text(
+      size = 11,
+      face = "bold"
+    ),
+
+    panel.grid.major.y = element_line(
+      color = "gray90",
+      linewidth = 0.4
+    ),
+
+    panel.grid.minor = element_blank(),
+
+    panel.spacing = unit(1.5, "lines"),
+
+    legend.title = element_text(
+      face = "bold"
+    ),
+
+    plot.caption = element_text(
+      hjust = 0,
+      color = "gray40",
+      size = 9
+    )
+  )
+```
+
+Salary distributions generally appear to vary across different work arrangements and levels of experience. On-site and fully remote positions consistently show substantial overlap, while hybrid positions consistently have lower salary concentrations across all four experience levels. Salary distributions do seem to shift towards higher values as experience levels increase in seniority. Executive positions tend to have the highest salaries concentration, and entry level positions seem to have the lowest. Furthermore, it does appear that the overlap of hybrid positions with on-site and remote positions seems to increase as experience level increases. Essentially, executive positions have the greatest overlap between all three work arrangements. 
+
+On-site and fully remote positions have relatively similar, overlapping salary distributions, while hybrid positions are clearly shifted toward lower salaries. The distribution of hybrid work arrangements are also broader, indicating lower concentration spread out over a variety of salary ranges. Because experience levels are combined within this figure, a difference in the composition of experience levels could be a contributing factor to the discrepancies. 
+
+### 4. What Is the Financial Return Across Career Levels?
+
+#### Career Progression Salary Differences
+
+```{r career-progression}
+#| fig-width: 11
+#| fig-height: 6
+# TODO (Brendan): Paste the career-progression visualization:
+# median salaries for Entry, Mid, Senior, Executive, with absolute
+# and/or percentage differences between adjacent levels.
+```
+
+<!-- TODO: Interpret Entry→Mid, Mid→Senior, and Senior→Executive salary gaps.
+     These are cross-sectional differences between positions, not observed
+     raises for the same employees or guaranteed returns to promotion. -->
+
+## IV. Regression Analysis: Remote Work and Compensation
+
+### Modeling Approach
+
+  To examine the relationship between remote work and compensation, we fit a multiple linear regression model using log salary in USD as the response variable. Salary was log-transformed because the original distribution was strongly right-skewed due to a smaller number of very high salaries, while the transformed distribution was more symmetric. The transformation reduces the influence of these extreme values and also allows salary differences to be interpreted proportionally rather than only in dollar amounts.
+
+  The model includes experience level, company size, work year, remote-work status, and job function because each may be related to compensation. Including these variables helps separate the relationship between remote work and salary from differences in the types of positions being compared, since remote and on-site positions may differ in seniority, company size, year, or job function. Experience level, company size, and work year were treated as factors rather than numeric variables so the model does not assume equal salary differences between categories or a constant yearly trend. Remote status was also treated as a factor with On-Site, Hybrid, and Fully Remote categories, avoiding the assumption that compensation changes linearly as the amount of remote work increases.
+
+  Because the dataset contains hundreds of individual job titles, we grouped similar titles into eight broader job functions: Data Science, AI/Machine Learning, Data Engineering/Infrastructure, Analytics/BI, Research/Quantitative, Management/Product, Software/Systems Engineering, and Other. The groups were created using keywords describing the primary function of each title. This involves a tradeoff between detail and simplicity: keeping every individual title would preserve more role-specific information but would create many categories with relatively few observations, while grouping titles loses some specificity but provides broader and more stable comparisons across similar types of work.
+
+  Categorical variables are represented using dummy variables, with one category serving as the reference group. For remote status, On-Site is the reference, so the Hybrid and Fully Remote coefficients represent salary differences relative to on-site positions while holding experience level, company size, year, and job function constant. These estimates represent associations rather than causal effects, since other factors not captured in the dataset may also affect compensation.
+
+The model is:
+
+$$
+log(Salary) = \beta_0 + \beta_1experience +
+\beta_2size + \beta_3year +
+\beta_4remoteratio + \beta_5 rolegroups + \epsilon.
+$$
+
+
+### Model Diagnostics
+
+```{r residuals-fitted}
+#| fig-width: 9
+#| fig-height: 5
+#| eval: false
+# TODO: Residuals vs Fitted plot, e.g. plot(salary_model_train, which = 1)
+```
+
+```{r qq-residuals}
+#| fig-width: 9
+#| fig-height: 5
+#| eval: false
+# TODO: Normal Q-Q plot, e.g. plot(salary_model_train, which = 2)
+```
+
+```{r scale-location}
+#| fig-width: 9
+#| fig-height: 5
+#| eval: false
+# TODO: Scale-Location plot, e.g. plot(salary_model_train, which = 3)
+```
+
+```{r residuals-leverage}
+#| fig-width: 9
+#| fig-height: 5
+#| eval: false
+# TODO: Residuals vs Leverage, e.g. plot(salary_model_train, which = 5)
+```
+
+```{r collinearity-check}
+#| eval: false
+# TODO: car::vif(salary_model_train)
+```
+
+  The residuals were generally centered around zero across fitted values, although the Scale-Location plot showed some variation in residual spread. The Q-Q plot followed the reference line reasonably well through the center but showed departures in both tails, indicating that the residuals were not perfectly normally distributed. The leverage plot identified several higher-leverage observations, but no single observation appeared to dominate the overall model fit. Multicollinearity was also assessed using adjusted GVIF values, which ranged from 1.020 to 1.041, indicating little overlap among the model predictors. Overall, the diagnostics show some departures from the standard regression assumptions, so the model is used primarily to describe broad compensation associations rather than precise individual salary predictions.
+  
+<!-- NOTE: The four diagnostic plots are technical supporting displays. Decide
+     with your team/instructor whether they count toward the 6–10 primary figures;
+     if so, move them to a collapsed appendix or show a selected subset. -->
+
+## V. Target Employer and Recruiting Playbook
+
+### Proposed Client: Lockheed Martin
+
+  Our team recommends Lockheed Martin as a strong potential client. As the world’s largest defense contractor, Lockheed Martin specializes in an industry that is experiencing rapidly increasing demand for advanced technology, data science, and artificial intelligence. Lockheed Martin currently has an order backlog of approximately $230 billion, which represents more than two years of production time. Rather than viewing this backlog as a constraint in supply, Lockheed Martin has instead recognized it as a need to grow production capacity and identify more innovative and technologically advanced methods to demand. Furthermore, just under 75% of Lockheed Martin’s revenue comes directly from the U.S. government, primarily the Department of Defense, creating strong incentives for the company to improve operational efficiency by investing in technological advancements. This concentration of revenue demonstrates the stability and reliability of Lockheed Martin’s business model, as its relationship with the U.S. government indicates an undeniably consistent source of demand. For our company and team project, this makes Lockheed Martin not only a one-time client, but actually a strong long-term client with a fairly low risk of loss in demand.
+
+  Lockheed Martin also appears to be a strong potential anchor client because of its continued focus on growth and expansion. The company is not simply maintaining its existing operations. Based on their recent public statements, they are actively investing in new technologies, specifically expanding their use of AI. We are currently seeing approximately 400 active job postings, which suggests sustained hiring demand.
+
+  Furthemore, through external market research, we have discovered that Lockheed Martin is actively expanding its use of artificial intelligence and data science to streamline operations, accelerate production, and build large-scale defense initiatives. The company recently established the Lockheed Martin AI Center (LAIC), which is dedicated to developing and implementing AI solutions across the organization. As these initiatives continue to expand, Lockheed Martin will require employees with specialized technical, quantitative, and analytical skills. This represents a strong alignment with the candidates that our company serves. The data science, statistical, and quantitative roles emerging from Lockheed Martin’s AI and technology initiatives closely match both the skill sets and career interests of our candidate pool. Furthemore, Lockheed Martin offers highly competitive compensation packages, falling much higher than the national average. All of these factors make these positions very attractive to qualified candidates, and they strengthen our own company’s credibility. 
+
+
+<!-- TODO (Brendan): Insert sourced company profile and current evidence of
+     AI investment, recruiting needs, and hiring constraints. Verify all
+     figures and dates, and use Chicago full-note citations. -->
+
+### Priority Roles and Seniority Levels
+
+<!-- TODO: Name specific roles/seniority to recruit first and connect each
+     recommendation to a salary pattern AND company-specific evidence. -->
+
+### Practical Recruiting Strategy
+
+<!-- TODO: Compensation benchmarks, on-site/clearance/citizenship constraints,
+     geographic considerations, and candidate-pipeline priorities. -->
+
+## VI. Limitations and Evidence Boundaries
+
+The dataset is an archive of reported salaries rather than a representative probability sample of the Data & AI labor market. Records are concentrated in later years and certain employer and location categories; 2025 coverage may be incomplete. Duplicate records were retained because their meaning cannot be established from the available fields. Changes in observed median salary do not necessarily measure market-wide wage growth, and the regression cannot establish that remote work causes a salary premium or penalty.
+
+<!-- TODO: Explicitly identify any tempting but unsupported claims the team
+     rejected, and distinguish global salary patterns from Lockheed-specific pay. -->
+
+## VII. Conclusion, Approval Request, and Next Evidence
+
+<!-- TODO: Summarize 2–3 findings, recommend a specific recruiting priority,
+     discuss the tradeoff, state what approval the client should give, and
+     identify the next evidence to request (e.g. verified job postings,
+     employer pay bands, geography, security clearance requirements). -->
+
+## VIII References
+
+<!-- TODO: Chicago full-note references for Kaggle, company filings,
+     hiring evidence, and any external labor-market context. -->
+
+## IX. Appendix: Reproducibility
+
+### Data Source and Packages
+
+```{r appendix-packages}
+#| eval: false
+# TODO: Dataset URL, package versions, sessionInfo()
+```
+
+### Data Audit and Cleaning
+
+```{r appendix-cleaning}
+#| eval: false
+# TODO: Complete import, full-time filter, duplicate audit,
+# missingness audit, factor labels, log salary creation.
+```
+
+### Job-Title Grouping Rules
+
+```{r appendix-role-groups}
+#| eval: false
+# TODO: Full case_when() keyword rules for all eight groups.
+```
+
+### Model Reproduction
+
+```{r appendix-model}
+#| eval: false
+# TODO: Seed, train/test split, model fit, test predictions,
+# RMSE/MAE, VIF/GVIF, and any sensitivity checks.
+```
+
+<!-- IMPORTANT: Before final rendering, replace or remove eval:false placeholders.
+     Use the cleaned data object from the shared team script, and ensure every
+     displayed graph has units, a clear subset, and sample-size notes as needed. -->
