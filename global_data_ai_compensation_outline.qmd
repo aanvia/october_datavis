@@ -124,7 +124,52 @@ sal <- sal |>
 
   The given Kaggle dataset contains no missing values within any of the columns, so we will not remove any observations due to missingness. We will, however, remove non full-time employment arrangements, as the analysis focuses on compensation patterns within full-time roles. Thus, we will remove observations that are classified as freelance (FL), contract (CT), or part-time (PT). We also retained all duplicate records, rather than automatically removing them. A duplicate row may simply represent the same position report for different employers, or even the same employer that requires many employees for the same position. In context, an identical record does not necessarily indicate a falsely-recorded observation. In fact, removing these records without further analysis could remove legitimate salary observations. We also chose to retain salary observations from companies located outside of the United States, as excluding them may restrict our analysis. To account for discrepancy in the currency of salaries, we will utilize the salary_in_usd variable throughout our analysis.
   
-  We transformed the remote_ratio variable into three labeled categories: On-side, Hybrid, and Full Remote. We also transformed the experience level variable into labeled categories: Entry, Mid, Senior, and executive. As mentioned earlier, we are using the salary_in_usd variable as our primary response variable. However, as this variable is strongly right-skewed, we will log that variable before moving forward with the report. Lastly, we will group role families ___
+  We transformed the remote_ratio variable into three labeled categories: On-side, Hybrid, and Full Remote. We also transformed the experience level variable into labeled categories: Entry, Mid, Senior, and executive. As mentioned earlier, we are using the salary_in_usd variable as our primary response variable. However, as this variable is strongly right-skewed, we will log that variable before moving forward with the report. Lastly, we will group role families as seen in the table below.
+
+```{r tbl-role-groups}
+#| tbl-cap: "Job Title Classification Rules and Dataset Composition"
+#| echo: false
+
+role_table <- tibble(
+  role_group = c(
+    "Data Science",
+    "AI / Machine Learning",
+    "Data Engineering / Infrastructure",
+    "Analytics / BI",
+    "Research / Quantitative",
+    "Management / Product",
+    "Software / Systems Engineering",
+    "Other"
+  ),
+  keywords = c(
+    "data scientist, decision scientist, applied scientist",
+    "machine learning, ML, artificial intelligence, AI, NLP, computer vision, deep learning, LLM, prompt",
+    "data engineer, data architect, DataOps, data infrastructure, data platform, data integration, ETL, data pipeline, data developer",
+    "analyst, analytics, business intelligence, BI, Power BI, data analysis, reporting, data visualization",
+    "research, quantitative, statistician, statistical, computational scientist, economist, actuar, postdoctoral",
+    "manager, director, head of, product manager, product owner, data lead, analytics lead",
+    "software, developer, engineer, DevOps, platform, site reliability, systems, architect, technical lead, tech lead",
+    "No preceding keyword match"
+  )
+)
+
+role_counts <- sal |>
+  count(role_group, name = "n") |>
+  mutate(percentage = n / sum(n))
+
+role_table |>
+  left_join(role_counts, by = "role_group") |>
+  mutate(
+    n = replace_na(n, 0L),
+    percentage = replace_na(percentage, 0),
+    n = scales::comma(n),
+    percentage = scales::percent(percentage, accuracy = 0.1)
+  ) |>
+  knitr::kable(
+    col.names = c("Role Family", "Classification Keywords", "Records (n)", "Percentage"),
+    align = c("l", "l", "r", "r")
+  )
+```
 
 
 ### Coverage and Composition
@@ -357,10 +402,6 @@ role_growth_plot |>
 ```
 
   Breaking the 2024–2025 changes down further by experience level shows additional differences within job functions. Entry-level growth was led by BI Analyst, while several research and data-focused roles declined. At the mid level, Business Intelligence Engineer, Platform Engineer, and AI Engineer were among the strongest-growing roles, while several engineering roles declined. Senior-level growth was strongest for Applied Scientist, with Data Specialist and Machine Learning Scientist also increasing. Executive results were similarly mixed, with positive growth for Manager, Data Analyst, and Software Engineer despite the overall decline in executive median salary. For an executive-search firm, these results suggest that compensation benchmarks and candidate-pipeline priorities should account for both specialization and experience level rather than relying on overall salary trends.
-
-
-<!-- TODO: If you include experience-specific role-growth charts, decide whether
-     they replace an existing figure to stay within the 6–10 figure limit. -->
 
 ### 2. How Do Compensation Trajectories Differ Across Career Levels?
 
@@ -981,9 +1022,6 @@ ggplot(
 ```
 The size of a raise appears to be highly dependent on the role. Entry to mid is the largest step up for Software/Systems Engineering (+37%), Data Engineering/Infrastructure (+44%), Data Science (+35%), and Other (+60%). Mid to senior level raises are the largest for AI/Machine Learning, Management/Product, and Research/Quantitative (all near +18%). At the senior level, AI/Machine Learning has the highest median of our three target roles at \$185k, with Data Science at \$160k, and Data Engineering at $154k. Research/Quantitative has no executive point because that group has less than 30 records in our data. 
 
-<!-- TODO: Interpret Entry→Mid, Mid→Senior, and Senior→Executive salary gaps.
-     These are cross-sectional differences between positions, not observed
-     raises for the same employees or guaranteed returns to promotion. -->
 
 ## IV. Regression Analysis: Remote Work and Compensation
 
@@ -993,7 +1031,7 @@ The size of a raise appears to be highly dependent on the role. Entry to mid is 
 
   The model includes experience level, company size, work year, remote-work status, and job function because each may be related to compensation. Including these variables helps separate the relationship between remote work and salary from differences in the types of positions being compared, since remote and on-site positions may differ in seniority, company size, year, or job function. Experience level, company size, and work year were treated as factors rather than numeric variables so the model does not assume equal salary differences between categories or a constant yearly trend. Remote status was also treated as a factor with On-Site, Hybrid, and Fully Remote categories, avoiding the assumption that compensation changes linearly as the amount of remote work increases.
 
-  Because the dataset contains hundreds of individual job titles, we grouped similar titles into eight broader job functions: Data Science, AI/Machine Learning, Data Engineering/Infrastructure, Analytics/BI, Research/Quantitative, Management/Product, Software/Systems Engineering, and Other. The groups were created using keywords describing the primary function of each title. This involves a tradeoff between detail and simplicity: keeping every individual title would preserve more role-specific information but would create many categories with relatively few observations, while grouping titles loses some specificity but provides broader and more stable comparisons across similar types of work.
+  Because the dataset contains hundreds of individual job titles, we grouped similar titles into eight broader job functions: Data Science, AI/Machine Learning, Data Engineering/Infrastructure, Analytics/BI, Research/Quantitative, Management/Product, Software/Systems Engineering, and Other as seen in Table 1. The groups were created using keywords describing the primary function of each title. This involves a tradeoff between detail and simplicity: keeping every individual title would preserve more role-specific information but would create many categories with relatively few observations, while grouping titles loses some specificity but provides broader and more stable comparisons across similar types of work.
 
   Categorical variables are represented using dummy variables, with one category serving as the reference group. For remote status, On-Site is the reference, so the Hybrid and Fully Remote coefficients represent salary differences relative to on-site positions while holding experience level, company size, year, and job function constant. These estimates represent associations rather than causal effects, since other factors not captured in the dataset may also affect compensation.
 
@@ -1095,16 +1133,27 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
   This would involve gathering additional company-specific data, including prior hiring history, current and historical job postings, salary ranges, locations, and the technical requirements associated with relevant positions. We should also examine security clearance and U.S. citizenship requirements, as these qualifications could significantly narrow the pool of eligible candidates. Additionally, we should investigate comparable companies with publicly available hiring information to better understand industry-wide demand and identify where Lockheed Martin may face competition for specialized talent. Once this information is collected, we can compare Lockheed Martin’s requirements with our existing candidates to determine where we have the strongest fit and identify the positions where our firm can provide the most value. We can then approach Lockheed Martin to validate its current and future recruiting needs and propose a small initial recruiting pilot focused on high-priority AI, data science, machine learning, or data engineering positions. If successful, this initial engagement could provide an opportunity to establish Lockheed Martin as a long-term anchor client and expand our recruiting services across additional technical and quantitative roles.
 
 
-## VIII References
+## VIII. References
 
-<!-- TODO: Chicago full-note references for Kaggle, company filings,
-     hiring evidence, and any external labor-market context. -->
+- Shamim, Adil. “Salaries for Data Science Jobs.” Kaggle. Accessed October 8, 2026. https://www.kaggle.com/datasets/adilshamim8/salaries-for-data-science-jobs. 
+
+- Lockheed Martin. “Artificial Intelligence and Machine Learning.” *Lockheed Martin*. Accessed October 8, 2026. https://www.lockheedmartin.com/en-us/capabilities/artificial-intelligence-machine-learning.html.
+
+- Lockheed Martin. “Delivering AI at the Speed of Relevance in Defense.” *Lockheed Martin*, 2026. https://www.lockheedmartin.com/en-us/news/features/2026/Delivering-AI-at-the-Speed-of-Relevance-in-Defense.html.
 
 ## IX. Appendix: Reproducibility
 
 ### Data Set Up
 ```{r setup}
 #| ref.label: "setup"
+#| echo: true
+#| eval: false
+```
+
+
+### Data Cleaning and Transformation
+```{r fig-role-groups}
+#| ref.label: "tbl-role-groups"
 #| echo: true
 #| eval: false
 ```
@@ -1166,7 +1215,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 #| eval: false
 ```
 
-#### Table 1. Median Salary Increases Between Experience Levels
+#### Table 2. Median Salary Increases Between Experience Levels
 ```{r fig-career-progression}
 #| ref.label: "tbl-career-progression"
 #| echo: true
