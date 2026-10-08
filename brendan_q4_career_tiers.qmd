@@ -35,6 +35,52 @@ sal <- sal |>
     )
   )
 
+# role groups: same definition as model.qmd (first matching rule wins, so the
+# order of the rules below matters), applied before any filtering so every
+# data version below inherits it
+sal <- sal |>
+  mutate(
+    role_group = case_when(
+      # Data Science
+      str_detect(
+        str_to_lower(job_title),
+        "data scientist|decision scientist|applied scientist"
+      ) ~ "Data Science",
+      # AI / Machine Learning
+      str_detect(
+        str_to_lower(job_title),
+        "machine learning|\\bml\\b|artificial intelligence|\\bai\\b|nlp|computer vision|deep learning|llm|prompt"
+      ) ~ "AI / Machine Learning",
+      # Data Engineering / Infrastructure
+      str_detect(
+        str_to_lower(job_title),
+        "data engineer|data architect|dataops|data infrastructure|data platform|data integration|etl|data pipeline|data developer"
+      ) ~ "Data Engineering / Infrastructure",
+      # Analytics / BI
+      str_detect(
+        str_to_lower(job_title),
+        "analyst|analytics|business intelligence|\\bbi\\b|power bi|data analysis|reporting|data visualization"
+      ) ~ "Analytics / BI",
+      # Research / Quantitative
+      str_detect(
+        str_to_lower(job_title),
+        "research|quantitative|statistician|statistical|computational scientist|economist|actuar|postdoctoral"
+      ) ~ "Research / Quantitative",
+      # Management / Product
+      str_detect(
+        str_to_lower(job_title),
+        "manager|director|head of|product manager|product owner|data lead|analytics lead"
+      ) ~ "Management / Product",
+      # Software / Systems Engineering
+      str_detect(
+        str_to_lower(job_title),
+        "software|developer|engineer|devops|platform|site reliability|systems|system engineer|architect|technical lead|tech lead"
+      ) ~ "Software / Systems Engineering",
+      # everything else
+      TRUE ~ "Other"
+    )
+  )
+
 # MAIN data: full-time roles, 2024-2025, every employer country,
 # duplicate rows kept (this matches the team's current cleaned data)
 main <- sal |>
@@ -195,23 +241,18 @@ ggplot(role_steps, aes(x = transition, y = job_title, fill = gain)) +
 ```{r}
 #| label: fig-dumbbell
 #| fig-width: 10
-#| fig-height: 6
-# the six core roles used in the earlier homework plot
-core_roles <- c("Data Analyst", "Data Scientist", "Data Engineer",
-                "Machine Learning Engineer", "Software Engineer", "Product Manager")
-
-# median salary and record count for each core role and tier
+#| fig-height: 6.5
+# median salary and record count for each role group and tier
 role_levels <- main |>
-  filter(job_title %in% core_roles) |>
-  group_by(job_title, experience_level) |>
+  group_by(role_group, experience_level) |>
   summarise(median = median(salary_in_usd), n = n(), .groups = "drop") |>
   filter(n >= 30) |>                                   # drop cells too thin to trust
-  mutate(job_title = fct_reorder(job_title, median, .fun = max))  # order rows by top pay
+  mutate(role_group = fct_reorder(role_group, median, .fun = max))  # order rows by top pay
 
 # % step-up between neighbouring tiers within each role, with a label position
 role_labels <- role_levels |>
-  arrange(job_title, experience_level) |>
-  group_by(job_title) |>
+  arrange(role_group, experience_level) |>
+  group_by(role_group) |>
   mutate(
     prev_tier = lag(experience_level),                 # tier directly below
     prev_median = lag(median),                         # median of the tier below
@@ -222,22 +263,25 @@ role_labels <- role_levels |>
   # only label true neighbours (skips a step if a tier was dropped for low n)
   filter(!is.na(step_pct), as.numeric(experience_level) - as.numeric(prev_tier) == 1)
 
-ggplot(role_levels, aes(x = median, y = job_title)) +
+ggplot(role_levels, aes(x = median, y = role_group)) +
   # grey line spans the lowest to highest tier median in each role
-  geom_line(aes(group = job_title), color = "grey75", linewidth = 1) +
+  geom_line(aes(group = role_group), color = "grey75", linewidth = 1) +
   # one dot per tier
   geom_point(aes(color = experience_level), size = 3.5) +
   # % step-up printed just above the line between neighbouring dots
   geom_text(data = role_labels, aes(x = x_mid, label = percent(step_pct, accuracy = 1, style_positive = "plus")),
             size = 2.8, vjust = -1.1, color = "grey30") +
+  # median salary rounded to the nearest $1,000 (e.g. 132k) printed under each dot
+  geom_text(aes(label = paste0(round(median / 1000), "k")),
+            size = 2.8, vjust = 2.3, color = "grey30") +
   scale_color_viridis_d(option = "mako", begin = 0.1, end = 0.85, direction = -1) +
   scale_x_continuous(labels = dollar) +
   labs(
-    title = "What each tier costs in the six core roles, and how much each step adds",
-    subtitle = "Median annual salary by tier; labels show the % gain over the tier below",
+    title = "The biggest raise comes at Entry to Mid or Mid to Senior, depending on the role group",
+    subtitle = "Median annual salary by tier within each role group; labels show the % gain over the tier below",
     x = "Median annual salary (USD)", y = NULL, color = "Tier",
-    caption = paste0("Full-time roles, 2024-2025, all employer countries, nominal USD. ",
-                     "Tier/role cells with fewer than 30 records are left out.")
+    caption = paste0("Full-time roles, 2024-2025, all employer countries, nominal USD.\n",
+                     "Role groups as defined in model.qmd. Tier cells with fewer than 30 records are left out.")
   ) +
   theme_minimal(base_size = 12)
 ```
