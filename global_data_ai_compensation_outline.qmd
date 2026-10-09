@@ -1,7 +1,7 @@
 ---
 title: "Global Data & AI Workforce Compensation Analytics"
 subtitle: "Executive-search compensation and recruiting strategy"
-author: Aanvi Agrawal, Richard Jiang, Brendan Lin, Dung Pham
+authors: Aanvi Agrawal, Richard Jiang, Brendan Lin, Dung Pham
 format:
   html:
     self-contained: true
