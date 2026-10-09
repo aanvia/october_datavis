@@ -702,8 +702,6 @@ ggplot(
 
 Salary distributions generally appear to vary across different work arrangements and levels of experience. On-site and fully remote positions consistently show substantial overlap, while hybrid positions consistently have lower salary concentrations across all four experience levels. Salary distributions do seem to shift towards higher values as experience levels increase in seniority. Executive positions tend to have the highest salaries concentration, and entry level positions seem to have the lowest. Furthermore, it does appear that the overlap of hybrid positions with on-site and remote positions seems to increase as experience level increases. Essentially, executive positions have the greatest overlap between all three work arrangements.
 
-On-site and fully remote positions have relatively similar, overlapping salary distributions, while hybrid positions are clearly shifted toward lower salaries. The distribution of hybrid work arrangements are also broader, indicating lower concentration spread out over a variety of salary ranges. Because experience levels are combined within this figure, a difference in the composition of experience levels could be a contributing factor to the discrepancies.
-
 ### 4. What Is the Financial Return Across Career Levels?
 
 #### Career Progression Salary Differences
