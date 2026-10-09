@@ -1,6 +1,7 @@
 ---
 title: "Global Data & AI Workforce Compensation Analytics"
 subtitle: "Executive-search compensation and recruiting strategy"
+author: Aanvi Agrawal, Richard Jiang, Brendan Lin, Dung Pham
 format:
   html:
     self-contained: true
@@ -111,6 +112,8 @@ sal <- sal |>
 The executive search firm must decide where to launch its data and AI recruiting practice, and this report answers three relevant questions: which potential anchor client employer to approach first, which job titles and seniority levels to prioritize, and which pay benchmarks the firm can quote and how far they can be trusted. We recommend that the firm approach Lockheed Martin, a publicly traded Fortune 500 defense contractor, and prioritize senior level data science, machine learning, and data engineering roles, since senior is the largest tier in the data and has a median salary of about \$162k.
 
 We suggest the firm approve the Lockheed Martin approach and senior level pipeline. This report concludes that pay rises at every level of experience from entry, to mid level, to senior, then to executive. Senior level roles make up 57% of full time records from 2024 to 2025. We also suggest a small pilot for executive level searches, since these roles are rare in the data but have the highest median pay at \$190k. The next step to investigate is Lockheed’s own openings by title, level, and clearance requirement, because some roles may require US citizenship or a security clearance, which could shrink the candidate pool.
+
+AI Usage Disclosure: The ideas and concepts presented in this report are our team’s. We used AI tools to enhance the visual appeal of our graphics.
 
 ## II. Data Scope and Credibility Audit
 
