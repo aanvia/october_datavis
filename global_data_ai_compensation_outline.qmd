@@ -108,23 +108,23 @@ sal <- sal |>
 
 ## I. Executive Summary
 
-  The executive search firm must decide where to launch its data and AI recruiting practice, and this report answers three relevant questions: which potential anchor client employer to approach first, which job titles and seniority levels to prioritize, and which pay benchmarks the firm can quote and how far they can be trusted. We recommend that the firm approach Lockheed Martin, a publicly traded Fortune 500 defense contractor, and prioritize senior level data science, machine learning, and data engineering roles, since senior is the largest tier in the data and has a median salary of about $162k.
+The executive search firm must decide where to launch its data and AI recruiting practice, and this report answers three relevant questions: which potential anchor client employer to approach first, which job titles and seniority levels to prioritize, and which pay benchmarks the firm can quote and how far they can be trusted. We recommend that the firm approach Lockheed Martin, a publicly traded Fortune 500 defense contractor, and prioritize senior level data science, machine learning, and data engineering roles, since senior is the largest tier in the data and has a median salary of about \$162k.
 
-  We suggest the firm approve the Lockheed Martin approach and senior level pipeline. This report concludes that pay rises at every level of experience from entry, to mid level, to senior, then to executive. Senior level roles make up 57% of full time records from 2024 to 2025. We also suggest a small pilot for executive level searches, since these roles are rare in the data but have the highest median pay at $190k. The next step to investigate is Lockheed’s own openings by title, level, and clearance requirement, because some roles may require US citizenship or a security clearance, which could shrink the candidate pool. 
+We suggest the firm approve the Lockheed Martin approach and senior level pipeline. This report concludes that pay rises at every level of experience from entry, to mid level, to senior, then to executive. Senior level roles make up 57% of full time records from 2024 to 2025. We also suggest a small pilot for executive level searches, since these roles are rare in the data but have the highest median pay at \$190k. The next step to investigate is Lockheed’s own openings by title, level, and clearance requirement, because some roles may require US citizenship or a security clearance, which could shrink the candidate pool.
 
 ## II. Data Scope and Credibility Audit
 
 ### Data Source and Scope
 
-  This analysis uses the Data Science, AI & ML Job Salaries in 2025 dataset to examine compensation patterns in salary records from years 2020 through 2025. The dataset, obtained from Kaggle, contains many different variables, such as salary, experience level, employment type and remote/hybrid/in-person status, along with information about the company itself. The goal of our analysis is to monitor compensation trends within this data, specifically focusing on careers within data science and related industries.
+This analysis uses the Data Science, AI & ML Job Salaries in 2025 dataset to examine compensation patterns in salary records from years 2020 through 2025. The dataset, obtained from Kaggle, contains many different variables, such as salary, experience level, employment type and remote/hybrid/in-person status, along with information about the company itself. The goal of our analysis is to monitor compensation trends within this data, specifically focusing on careers within data science and related industries.
 
-  Within our data set, each row represents the salary associated with a specific position. It is important to note that a row is not a representation of a unique employee, employer, company, or even a specific job requisition. Furthermore, the frequency of (duplicated) records is not an indication of employer demand of any particular job title.
+Within our data set, each row represents the salary associated with a specific position. It is important to note that a row is not a representation of a unique employee, employer, company, or even a specific job requisition. Furthermore, the frequency of (duplicated) records is not an indication of employer demand of any particular job title.
 
 ### Data Cleaning and Transformations
 
-  The given Kaggle dataset contains no missing values within any of the columns, so we will not remove any observations due to missingness. We will, however, remove non full-time employment arrangements, as the analysis focuses on compensation patterns within full-time roles. Thus, we will remove observations that are classified as freelance (FL), contract (CT), or part-time (PT). We also retained all duplicate records, rather than automatically removing them. A duplicate row may simply represent the same position report for different employers, or even the same employer that requires many employees for the same position. In context, an identical record does not necessarily indicate a falsely-recorded observation. In fact, removing these records without further analysis could remove legitimate salary observations. We also chose to retain salary observations from companies located outside of the United States, as excluding them may restrict our analysis. To account for discrepancy in the currency of salaries, we will utilize the salary_in_usd variable throughout our analysis.
-  
-  We transformed the remote_ratio variable into three labeled categories: On-side, Hybrid, and Full Remote. We also transformed the experience level variable into labeled categories: Entry, Mid, Senior, and executive. As mentioned earlier, we are using the salary_in_usd variable as our primary response variable. However, as this variable is strongly right-skewed, we will log that variable before moving forward with the report. Lastly, we will group role families as seen in the table below.
+The given Kaggle dataset contains no missing values within any of the columns, so we will not remove any observations due to missingness. We will, however, remove non full-time employment arrangements, as the analysis focuses on compensation patterns within full-time roles. Thus, we will remove observations that are classified as freelance (FL), contract (CT), or part-time (PT). We also retained all duplicate records, rather than automatically removing them. A duplicate row may simply represent the same position report for different employers, or even the same employer that requires many employees for the same position. In context, an identical record does not necessarily indicate a falsely-recorded observation. In fact, removing these records without further analysis could remove legitimate salary observations. We also chose to retain salary observations from companies located outside of the United States, as excluding them may restrict our analysis. To account for discrepancy in the currency of salaries, we will utilize the salary_in_usd variable throughout our analysis.
+
+We transformed the remote_ratio variable into three labeled categories: On-side, Hybrid, and Full Remote. We also transformed the experience level variable into labeled categories: Entry, Mid, Senior, and executive. As mentioned earlier, we are using the salary_in_usd variable as our primary response variable. However, as this variable is strongly right-skewed, we will log that variable before moving forward with the report. Lastly, we will group role families as seen in the table below.
 
 ```{r tbl-role-groups}
 #| tbl-cap: "Job Title Classification Rules and Dataset Composition"
@@ -171,22 +171,21 @@ role_table |>
   )
 ```
 
-
 ### Coverage and Composition
 
-  It is important to note that though this dataset does contain observations from 2020 through 2025, the actual amount of data is very different across the years. Earlier years contain much fewer observations than some of the later years. More specifically, data auditing showed that 2024 and 2025 accounted for a majority of the records, which could influence compensation trends. This will be further discussed in our limitations section later in the report. Lastly, 2025 observations may not be representative of the entirety of the year. These observations are likely not taken from the whole year, though this is not clearly specified within the set. In fact, the records within this dataset are generally concentrated in particular groups of observations. For example, a large portion of the companies we have data on are mid-sized, as opposed to small or large. Similarly, most records represent full-time positions, and the majority are associated with employees residing in the United States and companies located in the United States. Similar size imbalances are found in various other data columns, like remote-work, and experience level.
+It is important to note that though this dataset does contain observations from 2020 through 2025, the actual amount of data is very different across the years. Earlier years contain much fewer observations than some of the later years. More specifically, data auditing showed that 2024 and 2025 accounted for a majority of the records, which could influence compensation trends. This will be further discussed in our limitations section later in the report. Lastly, 2025 observations may not be representative of the entirety of the year. These observations are likely not taken from the whole year, though this is not clearly specified within the set. In fact, the records within this dataset are generally concentrated in particular groups of observations. For example, a large portion of the companies we have data on are mid-sized, as opposed to small or large. Similarly, most records represent full-time positions, and the majority are associated with employees residing in the United States and companies located in the United States. Similar size imbalances are found in various other data columns, like remote-work, and experience level.
 
 ## III. Client Questions and Compensation Landscape
 
-  Our analysis focuses on four main research questions that provide a broad view of compensation in the Data Science and AI labor market. Together, these questions examine where salaries are changing, how compensation differs across career levels and work arrangements, and how pay changes as professionals advance in their careers. These patterns can help an executive-search firm benchmark compensation, understand changing candidate expectations, and make more informed recruiting decisions. 
+Our analysis focuses on four main research questions that provide a broad view of compensation in the Data Science and AI labor market. Together, these questions examine where salaries are changing, how compensation differs across career levels and work arrangements, and how pay changes as professionals advance in their careers. These patterns can help an executive-search firm benchmark compensation, understand changing candidate expectations, and make more informed recruiting decisions.
 
-  The first question is where salaries are growing. We examine changes in salary across Data Science and AI roles to identify areas experiencing the strongest salary growth. This is important because changes in salary can indicate where compensation expectations might be shifting and where firms need to remain competitive when adjusting candidates’ offers.
+The first question is where salaries are growing. We examine changes in salary across Data Science and AI roles to identify areas experiencing the strongest salary growth. This is important because changes in salary can indicate where compensation expectations might be shifting and where firms need to remain competitive when adjusting candidates’ offers.
 
-  The second question deals with how compensation trajectories differ across career levels. We compare salary trends between Entry, Mid, Senior, and Executive employees over time to determine whether compensation has changed similarly across different career stages. These comparisons will provide more appropriate benchmarks for recruiting candidates at different experience levels while identifying the segments of the workforce that have experienced the greatest changes in pay across the years.
+The second question deals with how compensation trajectories differ across career levels. We compare salary trends between Entry, Mid, Senior, and Executive employees over time to determine whether compensation has changed similarly across different career stages. These comparisons will provide more appropriate benchmarks for recruiting candidates at different experience levels while identifying the segments of the workforce that have experienced the greatest changes in pay across the years.
 
-  The third question pertains to a remote-work premium or penalty. We compare compensation across work arrangements to determine whether remote work is associated with higher or lower salaries. This relationship is useful for understanding how work arrangements relate to compensation and whether firms will need to account for remote-work status when developing competitive offers.
+The third question pertains to a remote-work premium or penalty. We compare compensation across work arrangements to determine whether remote work is associated with higher or lower salaries. This relationship is useful for understanding how work arrangements relate to compensation and whether firms will need to account for remote-work status when developing competitive offers.
 
-  The final question is what is the financial return associated with progressing from Entry to Mid to Senior to Executive? We compare compensation across career levels to measure the salary increase associated with career advancement. We can also identify where the largest increases occur within these experience levels. For an executive-search firm, these differences provide useful context for understanding the value of experience and the compensation required when recruiting increasingly senior Data Science and AI professionals.
+The final question is what is the financial return associated with progressing from Entry to Mid to Senior to Executive? We compare compensation across career levels to measure the salary increase associated with career advancement. We can also identify where the largest increases occur within these experience levels. For an executive-search firm, these differences provide useful context for understanding the value of experience and the compensation required when recruiting increasingly senior Data Science and AI professionals.
 
 ### 1. Where Are Salaries Growing?
 
@@ -291,8 +290,7 @@ role_group_growth |>
   )
 ```
 
-  From 2024 to 2025, salary growth varied considerably across job functions. Management/Product and Analytics/BI increased, while Data Science, AI/Machine Learning, Software/Systems Engineering, and Research/Quantitative declined. The largest increase occurred in the Other category, although this group contains roles that do not fit the primary job-function classifications. Looking within these broader groups shows even greater variation across individual roles. Insight Analyst and Quantitative Analyst experienced some of the strongest salary growth among the roles shown, while Prompt Engineer and AI Developer experienced some of the largest declines. These results suggest that recent salary changes are concentrated in particular functions and roles rather than occurring consistently across the positions represented in the data.
-
+From 2024 to 2025, salary growth varied considerably across job functions. Management/Product and Analytics/BI increased, while Data Science, AI/Machine Learning, Software/Systems Engineering, and Research/Quantitative declined. The largest increase occurred in the Other category, although this group contains roles that do not fit the primary job-function classifications. Looking within these broader groups shows even greater variation across individual roles. Insight Analyst and Quantitative Analyst experienced some of the strongest salary growth among the roles shown, while Prompt Engineer and AI Developer experienced some of the largest declines. These results suggest that recent salary changes are concentrated in particular functions and roles rather than occurring consistently across the positions represented in the data.
 
 #### Salary Growth by Individual Role
 
@@ -401,7 +399,7 @@ role_growth_plot |>
   )
 ```
 
-  Breaking the 2024–2025 changes down further by experience level shows additional differences within job functions. Entry-level growth was led by BI Analyst, while several research and data-focused roles declined. At the mid level, Business Intelligence Engineer, Platform Engineer, and AI Engineer were among the strongest-growing roles, while several engineering roles declined. Senior-level growth was strongest for Applied Scientist, with Data Specialist and Machine Learning Scientist also increasing. Executive results were similarly mixed, with positive growth for Manager, Data Analyst, and Software Engineer despite the overall decline in executive median salary. For an executive-search firm, these results suggest that compensation benchmarks and candidate-pipeline priorities should account for both specialization and experience level rather than relying on overall salary trends.
+Breaking the 2024–2025 changes down further by experience level shows additional differences within job functions. Entry-level growth was led by BI Analyst, while several research and data-focused roles declined. At the mid level, Business Intelligence Engineer, Platform Engineer, and AI Engineer were among the strongest-growing roles, while several engineering roles declined. Senior-level growth was strongest for Applied Scientist, with Data Specialist and Machine Learning Scientist also increasing. Executive results were similarly mixed, with positive growth for Manager, Data Analyst, and Software Engineer despite the overall decline in executive median salary. For an executive-search firm, these results suggest that compensation benchmarks and candidate-pipeline priorities should account for both specialization and experience level rather than relying on overall salary trends.
 
 ### 2. How Do Compensation Trajectories Differ Across Career Levels?
 
@@ -505,10 +503,9 @@ fig <- fig |>
 fig
 ```
 
-  The second question compares compensation trajectories across career levels. Median salaries for all levels increased from 2020 to 2025, except at the executive level, which remained at a similar level. However, observations for 2020 are sparse, with only 4 executive entries for representation. Additionally, if 2021 is treated as an outlier due to small sample size (n=9), salaries for executive positions seem relatively consistent in the 180-195k range. 
+The second question compares compensation trajectories across career levels. Median salaries for all levels increased from 2020 to 2025, except at the executive level, which remained at a similar level. However, observations for 2020 are sparse, with only 4 executive entries for representation. Additionally, if 2021 is treated as an outlier due to small sample size (n=9), salaries for executive positions seem relatively consistent in the 180-195k range.
 
-  For the remaining three levels, median salaries increased at varying rates. Entry level salaries increased by 55.8%, mid level salaries increased by 57.5%, and senior level salaries increased by 30.6%. However, salaries for all levels decreased in 2025 relative to 2024. This may indicate a slowdown in salary growth within the Data/AI market.
-
+For the remaining three levels, median salaries increased at varying rates. Entry level salaries increased by 55.8%, mid level salaries increased by 57.5%, and senior level salaries increased by 30.6%. However, salaries for all levels decreased in 2025 relative to 2024. This may indicate a slowdown in salary growth within the Data/AI market.
 
 <!-- TODO (Richard): Insert final year-by-year percentage changes and sample sizes. -->
 
@@ -586,9 +583,7 @@ ggplot(
   )
 ```
 
-Salary distributions differ across work arrangements. On-site and fully remote positions have relatively similar median salaries, standing at approximately $148,000 and $145,000 respectively. Hybrid positions, on the other hand, have a noticeably low median salary value of around $70,000. The on-side and fully remote roles also seem to have greater variability within their salary distributions, and a generally higher amount of outliers when compared to hybrid work roles.
-
-
+Salary distributions differ across work arrangements. On-site and fully remote positions have relatively similar median salaries, standing at approximately \$148,000 and \$145,000 respectively. Hybrid positions, on the other hand, have a noticeably low median salary value of around \$70,000. The on-side and fully remote roles also seem to have greater variability within their salary distributions, and a generally higher amount of outliers when compared to hybrid work roles.
 
 #### Salary Distributions by Work Arrangement and Experience
 
@@ -705,9 +700,9 @@ ggplot(
   )
 ```
 
-Salary distributions generally appear to vary across different work arrangements and levels of experience. On-site and fully remote positions consistently show substantial overlap, while hybrid positions consistently have lower salary concentrations across all four experience levels. Salary distributions do seem to shift towards higher values as experience levels increase in seniority. Executive positions tend to have the highest salaries concentration, and entry level positions seem to have the lowest. Furthermore, it does appear that the overlap of hybrid positions with on-site and remote positions seems to increase as experience level increases. Essentially, executive positions have the greatest overlap between all three work arrangements. 
+Salary distributions generally appear to vary across different work arrangements and levels of experience. On-site and fully remote positions consistently show substantial overlap, while hybrid positions consistently have lower salary concentrations across all four experience levels. Salary distributions do seem to shift towards higher values as experience levels increase in seniority. Executive positions tend to have the highest salaries concentration, and entry level positions seem to have the lowest. Furthermore, it does appear that the overlap of hybrid positions with on-site and remote positions seems to increase as experience level increases. Essentially, executive positions have the greatest overlap between all three work arrangements.
 
-On-site and fully remote positions have relatively similar, overlapping salary distributions, while hybrid positions are clearly shifted toward lower salaries. The distribution of hybrid work arrangements are also broader, indicating lower concentration spread out over a variety of salary ranges. Because experience levels are combined within this figure, a difference in the composition of experience levels could be a contributing factor to the discrepancies. 
+On-site and fully remote positions have relatively similar, overlapping salary distributions, while hybrid positions are clearly shifted toward lower salaries. The distribution of hybrid work arrangements are also broader, indicating lower concentration spread out over a variety of salary ranges. Because experience levels are combined within this figure, a difference in the composition of experience levels could be a contributing factor to the discrepancies.
 
 ### 4. What Is the Financial Return Across Career Levels?
 
@@ -897,7 +892,8 @@ main_steps |>
     align = "lrrr"
   )
 ```
-The fourth question looks at the financial return of moving from entry to mid to senior to executive. Median salary raises at each step, but the increase is smaller each time with a 48% increase from entry to mid, a 24% increase from mid to senior, and a 17% increase from senior to executive. The median salary for an entry level position is $88,300, and for executive level is $190,000. The 95% bootstrap intervals do not overlap, so the pattern of a smaller raise on each increase is a reliable claim based on this data. This describes an average change of salary, and should not be applied to any particular individual to dictate what their raise should be. 
+
+The fourth question looks at the financial return of moving from entry to mid to senior to executive. Median salary raises at each step, but the increase is smaller each time with a 48% increase from entry to mid, a 24% increase from mid to senior, and a 17% increase from senior to executive. The median salary for an entry level position is \$88,300, and for executive level is \$190,000. The 95% bootstrap intervals do not overlap, so the pattern of a smaller raise on each increase is a reliable claim based on this data. This describes an average change of salary, and should not be applied to any particular individual to dictate what their raise should be.
 
 ```{r fig-career-by-function}
 #| fig-cap: "Salary Progression by Job Function and Experience Level, 2024–2025"
@@ -1020,28 +1016,27 @@ ggplot(
     )
   )
 ```
-The size of a raise appears to be highly dependent on the role. Entry to mid is the largest step up for Software/Systems Engineering (+37%), Data Engineering/Infrastructure (+44%), Data Science (+35%), and Other (+60%). Mid to senior level raises are the largest for AI/Machine Learning, Management/Product, and Research/Quantitative (all near +18%). At the senior level, AI/Machine Learning has the highest median of our three target roles at \$185k, with Data Science at \$160k, and Data Engineering at $154k. Research/Quantitative has no executive point because that group has less than 30 records in our data. 
 
+The size of a raise appears to be highly dependent on the role. Entry to mid is the largest step up for Software/Systems Engineering (+37%), Data Engineering/Infrastructure (+44%), Data Science (+35%), and Other (+60%). Mid to senior level raises are the largest for AI/Machine Learning, Management/Product, and Research/Quantitative (all near +18%). At the senior level, AI/Machine Learning has the highest median of our three target roles at \$185k, with Data Science at \$160k, and Data Engineering at \$154k. Research/Quantitative has no executive point because that group has less than 30 records in our data.
 
 ## IV. Regression Analysis: Remote Work and Compensation
 
 ### Modeling Approach
 
-  To examine the relationship between remote work and compensation, we fit a multiple linear regression model using log salary in USD as the response variable. Salary was log-transformed because the original distribution was strongly right-skewed due to a smaller number of very high salaries, while the transformed distribution was more symmetric. The transformation reduces the influence of these extreme values and also allows salary differences to be interpreted proportionally rather than only in dollar amounts.
+To examine the relationship between remote work and compensation, we fit a multiple linear regression model using log salary in USD as the response variable. Salary was log-transformed because the original distribution was strongly right-skewed due to a smaller number of very high salaries, while the transformed distribution was more symmetric. The transformation reduces the influence of these extreme values and also allows salary differences to be interpreted proportionally rather than only in dollar amounts.
 
-  The model includes experience level, company size, work year, remote-work status, and job function because each may be related to compensation. Including these variables helps separate the relationship between remote work and salary from differences in the types of positions being compared, since remote and on-site positions may differ in seniority, company size, year, or job function. Experience level, company size, and work year were treated as factors rather than numeric variables so the model does not assume equal salary differences between categories or a constant yearly trend. Remote status was also treated as a factor with On-Site, Hybrid, and Fully Remote categories, avoiding the assumption that compensation changes linearly as the amount of remote work increases.
+The model includes experience level, company size, work year, remote-work status, and job function because each may be related to compensation. Including these variables helps separate the relationship between remote work and salary from differences in the types of positions being compared, since remote and on-site positions may differ in seniority, company size, year, or job function. Experience level, company size, and work year were treated as factors rather than numeric variables so the model does not assume equal salary differences between categories or a constant yearly trend. Remote status was also treated as a factor with On-Site, Hybrid, and Fully Remote categories, avoiding the assumption that compensation changes linearly as the amount of remote work increases.
 
-  Because the dataset contains hundreds of individual job titles, we grouped similar titles into eight broader job functions: Data Science, AI/Machine Learning, Data Engineering/Infrastructure, Analytics/BI, Research/Quantitative, Management/Product, Software/Systems Engineering, and Other as seen in Table 1. The groups were created using keywords describing the primary function of each title. This involves a tradeoff between detail and simplicity: keeping every individual title would preserve more role-specific information but would create many categories with relatively few observations, while grouping titles loses some specificity but provides broader and more stable comparisons across similar types of work.
+Because the dataset contains hundreds of individual job titles, we grouped similar titles into eight broader job functions: Data Science, AI/Machine Learning, Data Engineering/Infrastructure, Analytics/BI, Research/Quantitative, Management/Product, Software/Systems Engineering, and Other as seen in Table 1. The groups were created using keywords describing the primary function of each title. This involves a tradeoff between detail and simplicity: keeping every individual title would preserve more role-specific information but would create many categories with relatively few observations, while grouping titles loses some specificity but provides broader and more stable comparisons across similar types of work.
 
-  Categorical variables are represented using dummy variables, with one category serving as the reference group. For remote status, On-Site is the reference, so the Hybrid and Fully Remote coefficients represent salary differences relative to on-site positions while holding experience level, company size, year, and job function constant. These estimates represent associations rather than causal effects, since other factors not captured in the dataset may also affect compensation.
+Categorical variables are represented using dummy variables, with one category serving as the reference group. For remote status, On-Site is the reference, so the Hybrid and Fully Remote coefficients represent salary differences relative to on-site positions while holding experience level, company size, year, and job function constant. These estimates represent associations rather than causal effects, since other factors not captured in the dataset may also affect compensation.
 
 The model is:
 
-$$
-log(Salary) = \beta_0 + \beta_1experience +
+$$log(Salary) = \beta_0 + \beta_1experience +
 \beta_2size + \beta_3year +
-\beta_4remoteratio + \beta_5 rolegroups + \epsilon.
-$$
+\beta_4remoteratio + \beta_5 rolegroups + \epsilon.$$
+
 ```{r sal-model}
 salary_model <- lm(
   log_salary ~ experience_level +
@@ -1056,7 +1051,6 @@ salary_model <- lm(
 ```
 
 ### Model Diagnostics
-
 
 ```{r fig-model-diagnostics}
 #| fig-cap: "Regression Model Diagnostic Plots"
@@ -1078,64 +1072,60 @@ par(mfrow = c(1, 1))
 vif(salary_model)
 ```
 
+The residuals were generally centered around zero across fitted values, although the Scale-Location plot showed some variation in residual spread. The Q-Q plot followed the reference line reasonably well through the center but showed departures in both tails, indicating that the residuals were not perfectly normally distributed. The leverage plot identified several higher-leverage observations, but no single observation appeared to dominate the overall model fit. Multicollinearity was also assessed using adjusted GVIF values, which ranged from 1.020 to 1.041, indicating little overlap among the model predictors. Overall, the diagnostics show some departures from the standard regression assumptions, so the model is used primarily to describe broad compensation associations rather than precise individual salary predictions.
 
-
-
-  The residuals were generally centered around zero across fitted values, although the Scale-Location plot showed some variation in residual spread. The Q-Q plot followed the reference line reasonably well through the center but showed departures in both tails, indicating that the residuals were not perfectly normally distributed. The leverage plot identified several higher-leverage observations, but no single observation appeared to dominate the overall model fit. Multicollinearity was also assessed using adjusted GVIF values, which ranged from 1.020 to 1.041, indicating little overlap among the model predictors. Overall, the diagnostics show some departures from the standard regression assumptions, so the model is used primarily to describe broad compensation associations rather than precise individual salary predictions.
-  
+```{=html}
 <!-- NOTE: The four diagnostic plots are technical supporting displays. Decide
      with your team/instructor whether they count toward the 6–10 primary figures;
      if so, move them to a collapsed appendix or show a selected subset. -->
-     
+```
+
 ### Findings
 
-The Experience variable set executive as the baseline state, and created dummy variables for senior, mid, and entry levels. Keeping company size, year, remote status, and job function constant, changing to a senior level will decrease salary by an average of 17.6%. Setting the same framework for mid level and entry level positions will decrease salary by an average of 39.7% and 63.2% respectively. 
-The Company Size variable set large as the baseline state, with dummy variables for medium and small. Keeping experience, year, remote status, and job function constant, changing to a medium-sized company will decrease salary by an average of 8.7%. For small-sized companies, salary will decrease by an average of 44.4%. 
+The Experience variable set executive as the baseline state, and created dummy variables for senior, mid, and entry levels. Keeping company size, year, remote status, and job function constant, changing to a senior level will decrease salary by an average of 17.6%. Setting the same framework for mid level and entry level positions will decrease salary by an average of 39.7% and 63.2% respectively. The Company Size variable set large as the baseline state, with dummy variables for medium and small. Keeping experience, year, remote status, and job function constant, changing to a medium-sized company will decrease salary by an average of 8.7%. For small-sized companies, salary will decrease by an average of 44.4%.
 
-The Year variable set 2020 as the baseline year, with dummy variables for years 2021 to 2025. Keeping experience, company size, remote status, and job function constant, changing to the year 2021 will decrease salary by an average of 13.5%. With the same framework for the years 2023, 2024, and 2025, salary will increase on average by 11.6%, 14.7%, and 12.2% respectively. The year 2022 was omitted, as its beta coefficient was found insignificant at an alpha level of 0.05, so we cannot be confident in making the same interpretation. 
+The Year variable set 2020 as the baseline year, with dummy variables for years 2021 to 2025. Keeping experience, company size, remote status, and job function constant, changing to the year 2021 will decrease salary by an average of 13.5%. With the same framework for the years 2023, 2024, and 2025, salary will increase on average by 11.6%, 14.7%, and 12.2% respectively. The year 2022 was omitted, as its beta coefficient was found insignificant at an alpha level of 0.05, so we cannot be confident in making the same interpretation.
 
-The Remote Status variable was explained in the modeling approach section earlier. Keeping experience, company size, year, and job function constant, changing to on site work to hybrid will decrease salary by an average of 57%. Changing to remote will decrease salary by 3.4% on average. 
+The Remote Status variable was explained in the modeling approach section earlier. Keeping experience, company size, year, and job function constant, changing to on site work to hybrid will decrease salary by an average of 57%. Changing to remote will decrease salary by 3.4% on average.
 
-The Job Function variable sets the AI /Machine Learning role family as the baseline, with the others as dummy variables. Keeping experience, company size, year, and remote status constant, changing from the AI/Machine Learning role to the Research/Quantitative group will increase salary by an average of 1%. With the same framework, switching to other families all lead to salary decreases on average, with Analytics/BI at 40.2%, Data Engineering/Infrastructure at 23.7%, Data Science at 15.5%, Management/Product at 7.5%, Software/Systems Engineering at 6.6%, and Other at 38.5%. 
+The Job Function variable sets the AI /Machine Learning role family as the baseline, with the others as dummy variables. Keeping experience, company size, year, and remote status constant, changing from the AI/Machine Learning role to the Research/Quantitative group will increase salary by an average of 1%. With the same framework, switching to other families all lead to salary decreases on average, with Analytics/BI at 40.2%, Data Engineering/Infrastructure at 23.7%, Data Science at 15.5%, Management/Product at 7.5%, Software/Systems Engineering at 6.6%, and Other at 38.5%.
 
 ## V. Target Employer and Recruiting Playbook
 
 ### Proposed Client: Lockheed Martin
 
-  Our team recommends Lockheed Martin as a strong potential client. As the world’s largest defense contractor, Lockheed Martin specializes in an industry that is experiencing rapidly increasing demand for advanced technology, data science, and artificial intelligence. Lockheed Martin currently has an order backlog of approximately $230 billion, which represents more than two years of production time. Rather than viewing this backlog as a constraint in supply, Lockheed Martin has instead recognized it as a need to grow production capacity and identify more innovative and technologically advanced methods to demand. Furthermore, just under 75% of Lockheed Martin’s revenue comes directly from the U.S. government, primarily the Department of Defense, creating strong incentives for the company to improve operational efficiency by investing in technological advancements. This concentration of revenue demonstrates the stability and reliability of Lockheed Martin’s business model, as its relationship with the U.S. government indicates an undeniably consistent source of demand. For our company and team project, this makes Lockheed Martin not only a one-time client, but actually a strong long-term client with a fairly low risk of loss in demand.
+Our team recommends Lockheed Martin as a strong potential client. As the world’s largest defense contractor, Lockheed Martin specializes in an industry that is experiencing rapidly increasing demand for advanced technology, data science, and artificial intelligence. Lockheed Martin currently has an order backlog of approximately \$230 billion, which represents more than two years of production time. Rather than viewing this backlog as a constraint in supply, Lockheed Martin has instead recognized it as a need to grow production capacity and identify more innovative and technologically advanced methods to demand. Furthermore, just under 75% of Lockheed Martin’s revenue comes directly from the U.S. government, primarily the Department of Defense, creating strong incentives for the company to improve operational efficiency by investing in technological advancements. This concentration of revenue demonstrates the stability and reliability of Lockheed Martin’s business model, as its relationship with the U.S. government indicates an undeniably consistent source of demand. For our company and team project, this makes Lockheed Martin not only a one-time client, but actually a strong long-term client with a fairly low risk of loss in demand.
 
-  Lockheed Martin also appears to be a strong potential anchor client because of its continued focus on growth and expansion. The company is not simply maintaining its existing operations. Based on their recent public statements, they are actively investing in new technologies, specifically expanding their use of AI. We are currently seeing approximately 400 active job postings, which suggests sustained hiring demand.
+Lockheed Martin also appears to be a strong potential anchor client because of its continued focus on growth and expansion. The company is not simply maintaining its existing operations. Based on their recent public statements, they are actively investing in new technologies, specifically expanding their use of AI. We are currently seeing approximately 400 active job postings, which suggests sustained hiring demand.
 
-  Furthermore, through external market research, we have discovered that Lockheed Martin is actively expanding its use of artificial intelligence and data science to streamline operations, accelerate production, and build large-scale defense initiatives. The company recently established the Lockheed Martin AI Center (LAIC), which is dedicated to developing and implementing AI solutions across the organization. As these initiatives continue to expand, Lockheed Martin will require employees with specialized technical, quantitative, and analytical skills. This represents a strong alignment with the candidates that our company serves. The data science, statistical, and quantitative roles emerging from Lockheed Martin’s AI and technology initiatives closely match both the skill sets and career interests of our candidate pool. Furthemore, Lockheed Martin offers highly competitive compensation packages, falling much higher than the national average. All of these factors make these positions very attractive to qualified candidates, and they strengthen our own company’s credibility. 
+Furthermore, through external market research, we have discovered that Lockheed Martin is actively expanding its use of artificial intelligence and data science to streamline operations, accelerate production, and build large-scale defense initiatives. The company recently established the Lockheed Martin AI Center (LAIC), which is dedicated to developing and implementing AI solutions across the organization. As these initiatives continue to expand, Lockheed Martin will require employees with specialized technical, quantitative, and analytical skills. This represents a strong alignment with the candidates that our company serves. The data science, statistical, and quantitative roles emerging from Lockheed Martin’s AI and technology initiatives closely match both the skill sets and career interests of our candidate pool. Furthemore, Lockheed Martin offers highly competitive compensation packages, falling much higher than the national average. All of these factors make these positions very attractive to qualified candidates, and they strengthen our own company’s credibility.
 
-
+```{=html}
 <!-- TODO (Brendan): Insert sourced company profile and current evidence of
      AI investment, recruiting needs, and hiring constraints. Verify all
      figures and dates, and use Chicago full-note citations. -->
-
+```
 
 ## VI. Limitations and Evidence Boundaries
 
-Our first set of limitations come from properties of the data itself. Our data is a frozen August 2025 snapshot, so it has no 2026 observations and 2025 only covers part of the year. Each row is a salary record, not a unique person or a job opening. It is possible that out of the 52% of rows that are repeated, at least one instance might be the same person, meaning the data may not be entirely independent. Differences across tiers, role groups, and work arrangements are only associations, as we are not running an experimental study on salaries. Therefore, we cannot say remote work raises or lowers pay. Salary itself is the base pay in nominal USD, so it excludes bonuses, equity, and purchasing power. Pairs of employee residence and employer location are too sparse for multinational conclusions. Lastly, some variables have heavily uneven distributions in terms of counts in each factor. Some examples include the small number of hybrid workers (313), both small and large-sized companies (192 and 3902 respectively), and some role-tier combinations, so those results are less reliable. 
+Our first set of limitations come from properties of the data itself. Our data is a frozen August 2025 snapshot, so it has no 2026 observations and 2025 only covers part of the year. Each row is a salary record, not a unique person or a job opening. It is possible that out of the 52% of rows that are repeated, at least one instance might be the same person, meaning the data may not be entirely independent. Differences across tiers, role groups, and work arrangements are only associations, as we are not running an experimental study on salaries. Therefore, we cannot say remote work raises or lowers pay. Salary itself is the base pay in nominal USD, so it excludes bonuses, equity, and purchasing power. Pairs of employee residence and employer location are too sparse for multinational conclusions. Lastly, some variables have heavily uneven distributions in terms of counts in each factor. Some examples include the small number of hybrid workers (313), both small and large-sized companies (192 and 3902 respectively), and some role-tier combinations, so those results are less reliable.
 
-Next are some limitations regarding the model we fit. The residual analysis raised concerns over heteroskedasticity and high-leverage observations, which limits the model’s predictive power. This is reflected in the MAE value, which is a sizable proportion of salaries at all career levels, making the prediction not particularly useful. Lastly, many of our variables were factor variables, some with multiple levels. There then can be concerns about multiple comparison testing leading to higher chances of Type I error which should be considered. What partially alleviates this issue is the fact that a majority of the factor levels had p-values much lower than any reasonable significance level. 
+Next are some limitations regarding the model we fit. The residual analysis raised concerns over heteroskedasticity and high-leverage observations, which limits the model’s predictive power. This is reflected in the MAE value, which is a sizable proportion of salaries at all career levels, making the prediction not particularly useful. Lastly, many of our variables were factor variables, some with multiple levels. There then can be concerns about multiple comparison testing leading to higher chances of Type I error which should be considered. What partially alleviates this issue is the fact that a majority of the factor levels had p-values much lower than any reasonable significance level.
 
-Finally, there are some concerns regarding dataset relevance in terms of the project scope. The dataset does not mention the sector that each posting is made for, which would greatly impact the salary. Data-related postings in the defense sector would best match potential openings at Lockheed Martin, but the dataset surely includes other sectors like finance, healthcare, supply chain, and more, where salaries trend differently. Caution must be taken before immediately generalizing findings from the model to Lockheed Martin. Additionally, although observations can be made on how data-related postings overall trend, they don’t directly point to Lockheed Martin’s demand for such positions. Further research was needed to form conclusions about our company. 
+Finally, there are some concerns regarding dataset relevance in terms of the project scope. The dataset does not mention the sector that each posting is made for, which would greatly impact the salary. Data-related postings in the defense sector would best match potential openings at Lockheed Martin, but the dataset surely includes other sectors like finance, healthcare, supply chain, and more, where salaries trend differently. Caution must be taken before immediately generalizing findings from the model to Lockheed Martin. Additionally, although observations can be made on how data-related postings overall trend, they don’t directly point to Lockheed Martin’s demand for such positions. Further research was needed to form conclusions about our company.
 
-
+```{=html}
 <!-- TODO: Explicitly identify any tempting but unsupported claims the team
      rejected, and distinguish global salary patterns from Lockheed-specific pay. -->
+```
 
 ## VII. Conclusion, Approval Request, and Next Evidence
 
-  Our group has a couple next steps we believe would further our progress on this project. We would like to validate whether Lockheed Martin’s current and anticipated hiring needs align with the talent represented in our candidate pool. Based on the current data we have about the company and our candidates, skills and experiences do align. Our process for obtaining this data would include inquiring about prior hiring history, job postings, location and salary data, as well as any security clearances necessary to be a part of Lockheed Martin. 
-
-  This would involve gathering additional company-specific data, including prior hiring history, current and historical job postings, salary ranges, locations, and the technical requirements associated with relevant positions. We should also examine security clearance and U.S. citizenship requirements, as these qualifications could significantly narrow the pool of eligible candidates. Additionally, we should investigate comparable companies with publicly available hiring information to better understand industry-wide demand and identify where Lockheed Martin may face competition for specialized talent. Once this information is collected, we can compare Lockheed Martin’s requirements with our existing candidates to determine where we have the strongest fit and identify the positions where our firm can provide the most value. We can then approach Lockheed Martin to validate its current and future recruiting needs and propose a small initial recruiting pilot focused on high-priority AI, data science, machine learning, or data engineering positions. If successful, this initial engagement could provide an opportunity to establish Lockheed Martin as a long-term anchor client and expand our recruiting services across additional technical and quantitative roles.
-
+Our group has a couple next steps we believe would further our progress on this project. We would like to validate whether Lockheed Martin’s current and anticipated hiring needs align with the talent represented in our candidate pool. Based on the current data we have about the company and our candidates, skills and experiences do align. Our process for obtaining this data would include inquiring about prior hiring history, job postings, location and salary data, as well as any security and nationality clearances necessary to be a part of Lockheed Martin. Next, we should approach Lockheed Martin to assess and validate their needs, before we propose a recruiting pilot program that is focused on AI, data science, and machine learning positions. This pilot program’s success should be assessed. If proved to be profitable for both parties (Jamie LLC., and Lockheed Martin), our team should establish Lockheed Martin as a long-term anchor client, and expand our recruiting services across their organization as needed.
 
 ## VIII. References
 
-- Shamim, Adil. “Salaries for Data Science Jobs.” Kaggle. Accessed October 8, 2026. https://www.kaggle.com/datasets/adilshamim8/salaries-for-data-science-jobs. 
+- Shamim, Adil. “Salaries for Data Science Jobs.” Kaggle. Accessed October 8, 2026. https://www.kaggle.com/datasets/adilshamim8/salaries-for-data-science-jobs.
 
 - Lockheed Martin. “Artificial Intelligence and Machine Learning.” *Lockheed Martin*. Accessed October 8, 2026. https://www.lockheedmartin.com/en-us/capabilities/artificial-intelligence-machine-learning.html.
 
@@ -1144,24 +1134,25 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ## IX. Appendix: Reproducibility
 
 ### Data Set Up
+
 ```{r setup}
 #| ref.label: "setup"
 #| echo: true
 #| eval: false
 ```
 
-
 ### Data Cleaning and Transformation
+
 ```{r fig-role-groups}
 #| ref.label: "tbl-role-groups"
 #| echo: true
 #| eval: false
 ```
 
-
 ### Client Question 1.
 
 #### Fig 1. Salary Growth by Job Function
+
 ```{r fig-salary-growth-function}
 #| ref.label: "fig-salary-growth-function"
 #| echo: true
@@ -1169,6 +1160,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ```
 
 #### Fig 2. Salary Growth by Individual Role
+
 ```{r fig-salary-growth-title}
 #| ref.label: "fig-salary-growth-title"
 #| echo: true
@@ -1178,6 +1170,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ### Client Question 2.
 
 #### Fig 3. Salary Trends by Experience Level
+
 ```{r fig-salary-trends-experience}
 #| ref.label: "fig-salary-trends-experience"
 #| echo: true
@@ -1187,6 +1180,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ### Client Question 3.
 
 #### Fig 4. Salary Distributions by Work Arrangement
+
 ```{r fig-remote-boxplot}
 #| ref.label: "fig-remote-boxplot"
 #| echo: true
@@ -1194,6 +1188,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ```
 
 #### Fig 5. Salary Distributions by Work Arrangement and Experience
+
 ```{r fig-remote-density-experience}
 #| ref.label: "fig-remote-density-experience"
 #| echo: true
@@ -1203,6 +1198,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ### Client Question 3.
 
 #### Fig 6. Career Progression Salary Differences
+
 ```{r career-progression}
 #| ref.label: "career-progression"
 #| echo: true
@@ -1216,6 +1212,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ```
 
 #### Table 2. Median Salary Increases Between Experience Levels
+
 ```{r fig-career-progression}
 #| ref.label: "tbl-career-progression"
 #| echo: true
@@ -1223,6 +1220,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ```
 
 #### Fig 7. Salary Progression by Job Function and Experience Level
+
 ```{r fig-career-by-function}
 #| ref.label: "fig-career-by-function"
 #| echo: true
@@ -1232,6 +1230,7 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ### Modeling Approach
 
 #### Model
+
 ```{r sal-model}
 #| ref.label: "sal-model"
 #| echo: true
@@ -1239,17 +1238,15 @@ Finally, there are some concerns regarding dataset relevance in terms of the pro
 ```
 
 #### Diagnostics
+
 ```{r fig-model-diagnostics}
 #| ref.label: "fig-model-diagnostics"
 #| echo: true
 #| eval: false
 ```
+
 ```{r vif-model}
 #| ref.label: "vif-model"
 #| echo: true
 #| eval: false
 ```
-
-
-
-

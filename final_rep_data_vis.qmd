@@ -1,7 +1,0 @@
----
-title: "final_report_data_vis"
-format: html
----
-
-**Global Data & AI Workforce Compensation Analytics**
-

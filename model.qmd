@@ -98,6 +98,7 @@ sal |>
   count(role_group, sort = TRUE)
 
 ```
+
 ```{r}
 
 n <- nrow(sal)
