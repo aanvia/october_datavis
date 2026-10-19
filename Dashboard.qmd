@@ -1,17 +1,18 @@
 ---
-title: "Dashboard"
+title: "Data & AI Workforce Compensation Explorer"
 format:
   html:
     page-layout: full
-    fig-responsive: true
+    toc: false
     self-contained: true
-    toc: true
-    code-fold: true
+    code-fold: false
+    theme: cosmo
+    title-block-banner: false
 execute:
   echo: false
   warning: false
   message: false
-editor: visual
+editor: source
 ---
 
 ```{r echo = FALSE}
@@ -107,25 +108,133 @@ sal <- sal |>
 
 
 
-```{r fig-career-dashboard}
+```{r}
 #| echo: false
-#| warning: false
-#| message: false
-#| fig-width: 12
-#| fig-height: 10
-#| out-width: 100%
+#| results: asis
 
 library(tidyverse)
 library(plotly)
 library(scales)
 library(htmlwidgets)
+library(htmltools)
+library(jsonlite)
 
 # --------------------------------------------------
-# 1. Prepare data
+# 1. Dashboard styling
+# --------------------------------------------------
+
+cat('
+<style>
+body {
+  background: #F3F6F5;
+  color: #193E30;
+  font-family: Arial, sans-serif;
+}
+
+#quarto-content {
+  max-width: 1450px;
+  margin: auto;
+}
+
+#title-block-header {
+  display: none;
+}
+
+.dashboard-header {
+  background: #194735;
+  color: white;
+  padding: 34px 42px;
+  border-radius: 14px;
+  margin: 20px 0 24px;
+}
+
+.dashboard-eyebrow {
+  color: #FFFFFF !important;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+
+.dashboard-header h1 {
+  color: white;
+  font-size: 34px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.dashboard-header p {
+  color: #D7E8DE;
+  font-size: 16px;
+  margin: 0;
+}
+
+.dashboard-panel {
+  background: white;
+  border: 1px solid #E0E8E2;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+  box-shadow: 0 3px 12px rgba(25, 71, 53, 0.04);
+}
+
+.dashboard-section-title {
+  color: #194735;
+  font-size: 23px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.dashboard-note {
+  font-size: 14px;
+  color: #63756B;
+  line-height: 1.7;
+}
+
+.dashboard-footer {
+  font-size: 13px;
+  color: #63756B;
+  margin: 18px 0 32px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 24px;
+  }
+
+  .dashboard-header h1 {
+    font-size: 25px;
+  }
+
+  .dashboard-panel {
+    padding: 12px;
+  }
+}
+</style>
+')
+
+cat('
+<div class="dashboard-header">
+  <h1>Data & AI Workforce Compensation Explorer</h1>
+  <p>
+    Explore salary trends across experience levels,
+    company sizes, and technical role groups.
+  </p>
+</div>
+')
+
+# --------------------------------------------------
+# 2. Prepare data
 # --------------------------------------------------
 
 levels_exp <- c("Entry", "Mid", "Senior", "Executive")
-sizes <- c("All Companies", "Small", "Medium", "Large")
+
+sizes <- c(
+  "All Companies",
+  "Small",
+  "Medium",
+  "Large"
+)
 
 roles <- c(
   "All Roles",
@@ -159,25 +268,21 @@ salary_data <- sal |>
     !is.na(role_group)
   )
 
-# Create all-company and all-role versions of the data.
-# This allows every dropdown combination to be calculated.
-
 salary_options <- bind_rows(
   salary_data,
-  salary_data |> mutate(company_size = "All Companies")
-) |>
-  bind_rows(
-    salary_data |>
-      mutate(role_group = "All Roles"),
-    salary_data |>
-      mutate(
-        company_size = "All Companies",
-        role_group = "All Roles"
-      )
-  )
+  salary_data |>
+    mutate(company_size = "All Companies"),
+  salary_data |>
+    mutate(role_group = "All Roles"),
+  salary_data |>
+    mutate(
+      company_size = "All Companies",
+      role_group = "All Roles"
+    )
+)
 
 # --------------------------------------------------
-# 2. Annual salary medians
+# 3. Annual salary progression
 # --------------------------------------------------
 
 career_plot <- salary_options |>
@@ -196,7 +301,7 @@ career_plot <- salary_options |>
   filter(n >= 5)
 
 # --------------------------------------------------
-# 3. Salary premium table: 2024-2025
+# 4. Salary premium calculations
 # --------------------------------------------------
 
 career_gains <- salary_options |>
@@ -227,9 +332,6 @@ career_gains <- salary_options |>
     values_from = median_salary
   )
 
-# Ensure columns exist even when a role group
-# has no observations at a particular level.
-
 for (level in levels_exp) {
   if (!level %in% names(career_gains)) {
     career_gains[[level]] <- NA_real_
@@ -244,7 +346,7 @@ career_gains <- career_gains |>
   )
 
 # --------------------------------------------------
-# 4. Styling
+# 5. Formatting
 # --------------------------------------------------
 
 colors <- c(
@@ -268,8 +370,8 @@ symbols <- c(
   Executive = "triangle-up"
 )
 
-navy <- "#172543"
-muted <- "#596D8B"
+navy <- "#193E30"
+muted <- "#63756B"
 
 format_salary <- function(x) {
   ifelse(
@@ -288,7 +390,7 @@ format_gain <- function(x) {
 }
 
 # --------------------------------------------------
-# 5. Create line traces for every filter combination
+# 6. Plotly line traces
 # --------------------------------------------------
 
 fig <- plot_ly()
@@ -331,7 +433,7 @@ for (role in roles) {
 
           line = list(
             color = colors[[level]],
-            width = 3,
+            width = 5,
             dash = dash_styles[[level]]
           ),
 
@@ -365,7 +467,7 @@ for (role in roles) {
 fig <- plotly_build(fig)
 
 # --------------------------------------------------
-# 6. Add table traces for every filter combination
+# 7. Table traces
 # --------------------------------------------------
 
 for (role in roles) {
@@ -381,9 +483,6 @@ for (role in roles) {
         }
       ) |>
       arrange(match(company_size, sizes))
-
-    # For an empty group, display N/A instead
-    # of leaving the table blank.
 
     if (nrow(df) == 0) {
       df <- tibble(
@@ -403,7 +502,7 @@ for (role in roles) {
     }
 
     row_colors <- rep(
-      c("#FFFFFF", "#F0F4F9"),
+      c("#FFFFFF", "#F0F4F1"),
       length.out = nrow(df)
     )
 
@@ -419,7 +518,7 @@ for (role in roles) {
 
         domain = list(
           x = c(0, 1),
-          y = c(0.04, 0.27)
+          y = c(0.10, 0.32)
         ),
 
         header = list(
@@ -433,14 +532,13 @@ for (role in roles) {
             "<b>Mid to<br>Senior (%)</b>",
             "<b>Senior to<br>Executive (%)</b>"
           ),
-
           align = "center",
-          fill = list(color = "#34445C"),
+          fill = list(color = "#194735"),
           font = list(
             color = "#FFFFFF",
             size = 12
           ),
-          line = list(color = "#DCE4EF"),
+          line = list(color = "#DCE7DF"),
           height = 48
         ),
 
@@ -457,17 +555,14 @@ for (role in roles) {
           ),
 
           align = "center",
-
           fill = list(
             color = rep(list(row_colors), 8)
           ),
-
           font = list(
             color = navy,
             size = 12
           ),
-
-          line = list(color = "#DCE4EF"),
+          line = list(color = "#DCE7DF"),
           height = 37
         ),
 
@@ -483,12 +578,8 @@ for (role in roles) {
 }
 
 # --------------------------------------------------
-# 7. Two independent dropdowns
+# 8. Dropdown buttons
 # --------------------------------------------------
-
-# The buttons use "skip" so Plotly does not
-# overwrite the other dropdown's selection.
-# The JavaScript callback below applies both filters.
 
 size_buttons <- lapply(sizes, function(size) {
   list(
@@ -505,7 +596,7 @@ role_buttons <- lapply(roles, function(role) {
 })
 
 # --------------------------------------------------
-# 8. Layout
+# 9. Plotly layout
 # --------------------------------------------------
 
 fig <- fig |>
@@ -520,23 +611,17 @@ fig <- fig |>
     ),
 
     title = list(
-      text = paste0(
-        "<b>Median salaries vary by experience, ",
-        "company size, and role group</b>"
-      ),
+      text = "<b>Median Annual Salary by Experience Level</b>",
       x = 0.5,
       xanchor = "center",
       font = list(
-        size = 25,
+        size = 23,
         color = navy
       )
     ),
 
     xaxis = list(
-      title = list(
-        text = "Year",
-        standoff = 12
-      ),
+      title = list(text = "Year"),
       range = c(2019.8, 2025.2),
       tickmode = "linear",
       tick0 = 2020,
@@ -549,10 +634,9 @@ fig <- fig |>
 
     yaxis = list(
       title = list(
-        text = "Median Annual Salary (USD)",
-        standoff = 12
+        text = "Median Annual Salary (USD)"
       ),
-      domain = c(0.44, 0.88),
+      domain = c(0.49, 0.89),
       rangemode = "tozero",
       tickprefix = "$",
       tickformat = ",.0f",
@@ -563,11 +647,10 @@ fig <- fig |>
 
     legend = list(
       x = 0.84,
-      y = 0.84,
+      y = 0.82,
       xanchor = "left",
       yanchor = "top",
-      bgcolor = "rgba(255,255,255,0)",
-      font = list(size = 12)
+      bgcolor = "rgba(255,255,255,0)"
     ),
 
     updatemenus = list(
@@ -575,74 +658,82 @@ fig <- fig |>
         buttons = size_buttons,
         direction = "down",
         x = 0.05,
-        y = 1.03,
+        y = 1.02,
         xanchor = "left",
         yanchor = "top",
         showactive = TRUE,
-        active = 0,
         bgcolor = "#FFFFFF",
-        bordercolor = "#D4DEEB"
+        bordercolor = "#CBD8D1"
       ),
 
       list(
         buttons = role_buttons,
         direction = "down",
-        x = 0.27,
-        y = 1.03,
+        x = 0.28,
+        y = 1.02,
         xanchor = "left",
         yanchor = "top",
         showactive = TRUE,
-        active = 0,
         bgcolor = "#FFFFFF",
-        bordercolor = "#D4DEEB"
+        bordercolor = "#CBD8D1"
       )
     ),
 
     annotations = list(
       list(
-        text = paste0(
-          "Median annual salary in USD; ",
-          "at least 5 records per plotted point"
-        ),
+        text = "<b>COMPANY SIZE</b>",
         x = 0.05,
-        y = 0.94,
+        y = 1.04,
         xref = "paper",
         yref = "paper",
         xanchor = "left",
         showarrow = FALSE,
-        font = list(
-          size = 15,
-          color = muted
-        )
+        font = list(size = 12, color = muted)
       ),
 
       list(
-        text = "<b>Salary Premiums Differ Across Company Sizes</b>",
-        x = 0.5,
-        y = 0.365,
+        text = "<b>ROLE GROUP</b>",
+        x = 0.28,
+        y = 1.04,
         xref = "paper",
         yref = "paper",
+        xanchor = "left",
         showarrow = FALSE,
-        font = list(
-          size = 22,
-          color = navy
-        )
+        font = list(size = 12, color = muted)
       ),
 
       list(
         text = paste0(
-          "2024–2025 salary medians and ",
-          "career-stage differences"
+          "Median annual salary in USD | ",
+          "Minimum 5 records per plotted point"
         ),
+        x = 0.05,
+        y = 0.92,
+        xref = "paper",
+        yref = "paper",
+        xanchor = "left",
+        showarrow = FALSE,
+        font = list(size = 14, color = muted)
+      ),
+
+      list(
+        text = "<b>Salary Comparison and Career-Stage Premiums</b>",
         x = 0.5,
-        y = 0.325,
+        y = 0.37,
         xref = "paper",
         yref = "paper",
         showarrow = FALSE,
-        font = list(
-          size = 15,
-          color = muted
-        )
+        font = list(size = 21, color = navy)
+      ),
+
+      list(
+        text = "2024–2025 pooled salary medians",
+        x = 0.5,
+        y = 0.33,
+        xref = "paper",
+        yref = "paper",
+        showarrow = FALSE,
+        font = list(size = 14, color = muted)
       )
     ),
 
@@ -650,7 +741,7 @@ fig <- fig |>
     autosize = TRUE,
 
     margin = list(
-      t = 100,
+      t = 115,
       b = 40,
       l = 100,
       r = 35
@@ -665,7 +756,7 @@ fig <- fig |>
   )
 
 # --------------------------------------------------
-# 9. Synchronize both dropdowns
+# 10. Interactive filters and dynamic statistics
 # --------------------------------------------------
 
 trace_info <- list(
@@ -675,17 +766,26 @@ trace_info <- list(
   types = trace_types
 )
 
+summary_data <- career_gains |>
+  filter(company_size %in% sizes) |>
+  mutate(
+    key = paste(role_group, company_size, sep = "||"),
+    senior_salary = Senior,
+    senior_premium = Mid_Senior
+  ) |>
+  select(key, senior_salary, senior_premium)
+
 js <- sprintf(
 "
 function(el, x) {
 
   var gd = el;
   var info = %s;
+  var summaries = %s;
+  var sizeOptions = %s;
 
   var selectedSize = 'All Companies';
   var selectedRole = 'All Roles';
-
-  var sizeOptions = %s;
 
   gd.on('plotly_buttonclicked', function(event) {
 
@@ -728,47 +828,119 @@ function(el, x) {
       visible: visible,
       showlegend: showlegend
     });
+
+    var key = selectedRole + '||' + selectedSize;
+
+    var row = summaries.find(function(d) {
+      return d.key === key;
+    });
+
+    if (row) {
+
+      var salary = row.senior_salary;
+      var premium = row.senior_premium;
+
+      var salaryText =
+        salary == null || !Number.isFinite(salary)
+        ? 'N/A'
+        : '$' + Math.round(salary).toLocaleString('en-US');
+
+      var premiumText =
+        premium == null || !Number.isFinite(premium)
+        ? 'N/A'
+        : (premium * 100).toFixed(1) + '%%';
+
+      var salaryEl = document.getElementById('senior-salary');
+      var premiumEl = document.getElementById('senior-premium');
+
+      if (salaryEl) salaryEl.textContent = salaryText;
+      if (premiumEl) premiumEl.textContent = premiumText;
+    }
   });
 }
 ",
   jsonlite::toJSON(trace_info, auto_unbox = TRUE),
+  jsonlite::toJSON(summary_data, dataframe = "rows", na = "null"),
   jsonlite::toJSON(sizes, auto_unbox = TRUE)
 )
 
 fig <- htmlwidgets::onRender(fig, js)
 
+# --------------------------------------------------
+# 11. Render dashboard
+# --------------------------------------------------
+
 fig
 ```
 
+```{=html}
+<div class="dashboard-panel">
 
+  <div class="dashboard-section-title">
+    Compensation Highlights
+  </div>
 
-### Key Findings
+  <div style="
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  ">
 
-The salary data indicate that median compensation generally increases
-with experience level. However, the size of the premium varies
-substantially across company sizes.
+    <div style="
+      background: #EDF4EF;
+      border-radius: 12px;
+      padding: 22px;
+    ">
+      <div style="
+        color: #557264;
+        font-size: 13px;
+        font-weight: bold;
+      ">
+        SENIOR MEDIAN SALARY
+      </div>
 
-Small companies show a 48.1% difference between mid-level and senior
-median salaries, compared with 24.6% at medium companies and 22.5%
-at large companies.
+      <div id="senior-salary" style="
+        color: #194735;
+        font-size: 34px;
+        font-weight: bold;
+        margin-top: 8px;
+      ">
+        N/A
+      </div>
+    </div>
 
-These differences suggest that company size may influence the
-compensation associated with career advancement, although they do not
-represent individual salary increases.
+    <div style="
+      background: #EDF4EF;
+      border-radius: 12px;
+      padding: 22px;
+    ">
+      <div style="
+        color: #557264;
+        font-size: 13px;
+        font-weight: bold;
+      ">
+        MID-TO-SENIOR PREMIUM
+      </div>
 
-### Methodology and Limitations
+      <div id="senior-premium" style="
+        color: #194735;
+        font-size: 34px;
+        font-weight: bold;
+        margin-top: 8px;
+      ">
+        N/A
+      </div>
+    </div>
 
-Salary figures represent median annual compensation in USD.
+  </div>
 
-- **Time period:** 2020–2025 for the chart; 2024–2025 for the table.
-- **Grouping:** Experience level, company size, and year.
-- **Minimum sample:** Five valid salary observations per chart data point.
-- **Salary premiums:** Percentage differences between experience-group medians.
-- **N/A:** Insufficient observations or unavailable data.
+  <p class="dashboard-note" style="margin-top: 14px;">
+    Based on pooled 2024–2025 salary observations.
+    Statistics update with the selected filters.
+  </p>
 
-**Interpretation:** Salary premiums compare different employee groups
-rather than tracking salary increases for individual employees.
-Changes over time may also reflect changes in the composition of
-the dataset.
+</div>
+```
+
 
 
