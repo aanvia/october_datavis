@@ -118,65 +118,97 @@ sal <- sal |>
 library(tidyverse)
 library(plotly)
 library(scales)
+library(htmlwidgets)
 
 # --------------------------------------------------
 # 1. Prepare data
 # --------------------------------------------------
 
-levels <- c("Entry", "Mid", "Senior", "Executive")
+levels_exp <- c("Entry", "Mid", "Senior", "Executive")
 sizes <- c("All Companies", "Small", "Medium", "Large")
+
+roles <- c(
+  "All Roles",
+  "Data Science",
+  "AI / Machine Learning",
+  "Data Engineering / Infrastructure",
+  "Analytics / BI",
+  "Research / Quantitative",
+  "Management / Product",
+  "Software / Systems Engineering",
+  "Other"
+)
 
 salary_data <- sal |>
   mutate(
     experience_level = factor(
       as.character(experience_level),
-      levels = levels
+      levels = levels_exp
     ),
-    company_size = factor(
-      company_size,
-      levels = c("S", "M", "L"),
-      labels = c("Small", "Medium", "Large")
-    )
+    company_size = recode(
+      as.character(company_size),
+      S = "Small",
+      M = "Medium",
+      L = "Large"
+    ),
+    role_group = as.character(role_group)
   ) |>
   filter(
     !is.na(experience_level),
-    !is.na(company_size)
+    !is.na(company_size),
+    !is.na(role_group)
   )
 
-# Salary medians for individual company sizes
-career_size <- salary_data |>
-  group_by(work_year, company_size, experience_level) |>
-  summarise(
-    median_salary = median(salary_in_usd, na.rm = TRUE),
-    n = sum(!is.na(salary_in_usd)),
-    .groups = "drop"
-  ) |>
-  filter(n >= 5) |>
-  mutate(company_size = as.character(company_size))
+# Create all-company and all-role versions of the data.
+# This allows every dropdown combination to be calculated.
 
-# Overall salary medians
-career_all <- salary_data |>
-  group_by(work_year, experience_level) |>
-  summarise(
-    median_salary = median(salary_in_usd, na.rm = TRUE),
-    n = sum(!is.na(salary_in_usd)),
-    .groups = "drop"
-  ) |>
-  filter(n >= 5) |>
-  mutate(company_size = "All Companies")
-
-career_plot <- bind_rows(career_all, career_size)
+salary_options <- bind_rows(
+  salary_data,
+  salary_data |> mutate(company_size = "All Companies")
+) |>
+  bind_rows(
+    salary_data |>
+      mutate(role_group = "All Roles"),
+    salary_data |>
+      mutate(
+        company_size = "All Companies",
+        role_group = "All Roles"
+      )
+  )
 
 # --------------------------------------------------
-# 2. Salary progression table (2024-2025)
+# 2. Annual salary medians
 # --------------------------------------------------
 
-career_gains <- salary_data |>
+career_plot <- salary_options |>
+  filter(!is.na(salary_in_usd)) |>
+  group_by(
+    role_group,
+    company_size,
+    work_year,
+    experience_level
+  ) |>
+  summarise(
+    median_salary = median(salary_in_usd),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  filter(n >= 5)
+
+# --------------------------------------------------
+# 3. Salary premium table: 2024-2025
+# --------------------------------------------------
+
+career_gains <- salary_options |>
   filter(
     work_year %in% c(2024, 2025),
     !is.na(salary_in_usd)
   ) |>
-  group_by(company_size, experience_level) |>
+  group_by(
+    role_group,
+    company_size,
+    experience_level
+  ) |>
   summarise(
     median_salary = median(salary_in_usd),
     n = n(),
@@ -193,16 +225,26 @@ career_gains <- salary_data |>
   pivot_wider(
     names_from = experience_level,
     values_from = median_salary
-  ) |>
+  )
+
+# Ensure columns exist even when a role group
+# has no observations at a particular level.
+
+for (level in levels_exp) {
+  if (!level %in% names(career_gains)) {
+    career_gains[[level]] <- NA_real_
+  }
+}
+
+career_gains <- career_gains |>
   mutate(
     Entry_Mid = (Mid - Entry) / Entry,
     Mid_Senior = (Senior - Mid) / Mid,
     Senior_Executive = (Executive - Senior) / Senior
-  ) |>
-  arrange(company_size)
+  )
 
 # --------------------------------------------------
-# 3. Professional visual styling
+# 4. Styling
 # --------------------------------------------------
 
 colors <- c(
@@ -228,9 +270,7 @@ symbols <- c(
 
 navy <- "#172543"
 muted <- "#596D8B"
-grid_color <- "#E7EDF5"
 
-# Format missing values as N/A
 format_salary <- function(x) {
   ifelse(
     is.na(x),
@@ -248,217 +288,228 @@ format_gain <- function(x) {
 }
 
 # --------------------------------------------------
-# 4. Create Plotly figure
+# 5. Create line traces for every filter combination
 # --------------------------------------------------
 
 fig <- plot_ly()
 
+trace_roles <- character()
 trace_sizes <- character()
 trace_levels <- character()
+trace_types <- character()
 
-# Add one trace for each company size and level
-for (size in sizes) {
+for (role in roles) {
+  for (size in sizes) {
+    for (level in levels_exp) {
 
-  for (level in levels) {
+      df <- career_plot |>
+        filter(
+          role_group == role,
+          company_size == size,
+          experience_level == level
+        ) |>
+        arrange(work_year)
 
-    df <- career_plot |>
+      if (nrow(df) == 0) next
+
+      initial <- (
+        role == "All Roles" &&
+        size == "All Companies"
+      )
+
+      fig <- fig |>
+        add_trace(
+          data = df,
+          x = ~work_year,
+          y = ~median_salary,
+          type = "scatter",
+          mode = "lines+markers",
+          name = paste(level, "Level"),
+          legendgroup = level,
+          visible = initial,
+          showlegend = initial,
+
+          line = list(
+            color = colors[[level]],
+            width = 3,
+            dash = dash_styles[[level]]
+          ),
+
+          marker = list(
+            color = colors[[level]],
+            symbol = symbols[[level]],
+            size = 8
+          ),
+
+          text = ~paste0(
+            "<b>Year:</b> ", work_year,
+            "<br><b>Role group:</b> ", role_group,
+            "<br><b>Company size:</b> ", company_size,
+            "<br><b>Experience:</b> ", experience_level,
+            "<br><b>Median salary:</b> ",
+            dollar(median_salary),
+            "<br><b>Records:</b> ", comma(n)
+          ),
+
+          hoverinfo = "text"
+        )
+
+      trace_roles <- c(trace_roles, role)
+      trace_sizes <- c(trace_sizes, size)
+      trace_levels <- c(trace_levels, level)
+      trace_types <- c(trace_types, "line")
+    }
+  }
+}
+
+fig <- plotly_build(fig)
+
+# --------------------------------------------------
+# 6. Add table traces for every filter combination
+# --------------------------------------------------
+
+for (role in roles) {
+  for (size in sizes) {
+
+    df <- career_gains |>
       filter(
-        company_size == size,
-        experience_level == level
+        role_group == role,
+        if (size == "All Companies") {
+          company_size %in% c("Small", "Medium", "Large")
+        } else {
+          company_size == size
+        }
       ) |>
-      arrange(work_year)
+      arrange(match(company_size, sizes))
 
-    if (nrow(df) == 0) next
+    # For an empty group, display N/A instead
+    # of leaving the table blank.
+
+    if (nrow(df) == 0) {
+      df <- tibble(
+        company_size = if (size == "All Companies") {
+          c("Small", "Medium", "Large")
+        } else {
+          size
+        },
+        Entry = NA_real_,
+        Mid = NA_real_,
+        Senior = NA_real_,
+        Executive = NA_real_,
+        Entry_Mid = NA_real_,
+        Mid_Senior = NA_real_,
+        Senior_Executive = NA_real_
+      )
+    }
+
+    row_colors <- rep(
+      c("#FFFFFF", "#F0F4F9"),
+      length.out = nrow(df)
+    )
+
+    initial <- (
+      role == "All Roles" &&
+      size == "All Companies"
+    )
 
     fig <- fig |>
       add_trace(
-        data = df,
-        x = ~work_year,
-        y = ~median_salary,
-        type = "scatter",
-        mode = "lines+markers",
+        type = "table",
+        inherit = FALSE,
 
-        name = paste(level, "Level"),
-        legendgroup = level,
-
-        visible = size == "All Companies",
-        showlegend = size == "All Companies",
-
-        line = list(
-          color = colors[[level]],
-          width = 3,
-          dash = dash_styles[[level]]
+        domain = list(
+          x = c(0, 1),
+          y = c(0.04, 0.27)
         ),
 
-        marker = list(
-          color = colors[[level]],
-          symbol = symbols[[level]],
-          size = 8
-        ),
-
-        text = ~paste0(
-          "<b>Year:</b> ", work_year,
-          "<br><b>Company size:</b> ", company_size,
-          "<br><b>Experience:</b> ", experience_level,
-          "<br><b>Median salary:</b> ",
-          dollar(median_salary),
-          "<br><b>Records:</b> ", comma(n)
-        ),
-
-        hoverinfo = "text"
-      )
-
-    trace_sizes <- c(trace_sizes, size)
-    trace_levels <- c(trace_levels, level)
-  }
-}
-
-# --------------------------------------------------
-# 5. Add tables to the same Plotly figure
-# --------------------------------------------------
-
-# Build traces once before adding tables
-fig <- plotly_build(fig)
-
-n_lines <- length(fig$x$data)
-
-# One table per company-size selection
-for (size in sizes) {
-
-  df <- if (size == "All Companies") {
-    career_gains
-  } else {
-    career_gains |>
-      filter(as.character(company_size) == size)
-  }
-
-  row_colors <- rep(
-    c("#FFFFFF", "#F0F4F9"),
-    length.out = nrow(df)
-  )
-
-  fig <- fig |>
-    add_trace(
-      type = "table",
-      inherit = FALSE,
-
-      domain = list(
-        x = c(0, 1),
-        y = c(0.04, 0.27)
-      ),
-
-      header = list(
-        values = c(
-          "<b>Company<br>Size</b>",
-          "<b>Entry<br>Level</b>",
-          "<b>Mid<br>Level</b>",
-          "<b>Senior<br>Level</b>",
-          "<b>Executive<br>Level</b>",
-          "<b>Entry to<br>Mid (%)</b>",
-          "<b>Mid to<br>Senior (%)</b>",
-          "<b>Senior to<br>Executive (%)</b>"
-        ),
-
-        align = "center",
-        fill = list(color = "#34445C"),
-        font = list(
-          color = "#FFFFFF",
-          size = 12
-        ),
-        line = list(color = "#DCE4EF"),
-        height = 48
-      ),
-
-      cells = list(
-        values = list(
-          as.character(df$company_size),
-          format_salary(df$Entry),
-          format_salary(df$Mid),
-          format_salary(df$Senior),
-          format_salary(df$Executive),
-          format_gain(df$Entry_Mid),
-          format_gain(df$Mid_Senior),
-          format_gain(df$Senior_Executive)
-        ),
-
-        align = "center",
-        fill = list(
-            color = rep(
-              list(row_colors),
-              8
-            )
+        header = list(
+          values = c(
+            "<b>Company<br>Size</b>",
+            "<b>Entry<br>Level</b>",
+            "<b>Mid<br>Level</b>",
+            "<b>Senior<br>Level</b>",
+            "<b>Executive<br>Level</b>",
+            "<b>Entry to<br>Mid (%)</b>",
+            "<b>Mid to<br>Senior (%)</b>",
+            "<b>Senior to<br>Executive (%)</b>"
           ),
-        font = list(
-          color = navy,
-          size = 12
-        ),
-        line = list(color = "#DCE4EF"),
-        height = 37
-      ),
 
-      visible = size == "All Companies",
-      showlegend = FALSE
-    )
+          align = "center",
+          fill = list(color = "#34445C"),
+          font = list(
+            color = "#FFFFFF",
+            size = 12
+          ),
+          line = list(color = "#DCE4EF"),
+          height = 48
+        ),
+
+        cells = list(
+          values = list(
+            as.character(df$company_size),
+            format_salary(df$Entry),
+            format_salary(df$Mid),
+            format_salary(df$Senior),
+            format_salary(df$Executive),
+            format_gain(df$Entry_Mid),
+            format_gain(df$Mid_Senior),
+            format_gain(df$Senior_Executive)
+          ),
+
+          align = "center",
+
+          fill = list(
+            color = rep(list(row_colors), 8)
+          ),
+
+          font = list(
+            color = navy,
+            size = 12
+          ),
+
+          line = list(color = "#DCE4EF"),
+          height = 37
+        ),
+
+        visible = initial,
+        showlegend = FALSE
+      )
+
+    trace_roles <- c(trace_roles, role)
+    trace_sizes <- c(trace_sizes, size)
+    trace_levels <- c(trace_levels, "")
+    trace_types <- c(trace_types, "table")
+  }
 }
 
 # --------------------------------------------------
-# 6. Dropdown controls graph and table
+# 7. Two independent dropdowns
 # --------------------------------------------------
 
-buttons <- lapply(seq_along(sizes), function(i) {
+# The buttons use "skip" so Plotly does not
+# overwrite the other dropdown's selection.
+# The JavaScript callback below applies both filters.
 
-  selected_size <- sizes[i]
-
-  line_visible <- trace_sizes == selected_size
-  table_visible <- seq_along(sizes) == i
-
-  # Only show one legend item per experience level
-  legend_visible <- rep(FALSE, n_lines)
-  shown_levels <- character()
-
-  for (j in seq_len(n_lines)) {
-
-    if (
-      line_visible[j] &&
-      !(trace_levels[j] %in% shown_levels)
-    ) {
-
-      legend_visible[j] <- TRUE
-
-      shown_levels <- c(
-        shown_levels,
-        trace_levels[j]
-      )
-    }
-  }
-
+size_buttons <- lapply(sizes, function(size) {
   list(
-    label = selected_size,
-    method = "update",
+    label = size,
+    method = "skip"
+  )
+})
 
-    args = list(
-      list(
-        visible = c(
-          line_visible,
-          table_visible
-        ),
-
-        showlegend = c(
-          legend_visible,
-          rep(FALSE, length(sizes))
-        )
-      )
-    )
+role_buttons <- lapply(roles, function(role) {
+  list(
+    label = role,
+    method = "skip"
   )
 })
 
 # --------------------------------------------------
-# 7. Final combined chart and table
+# 8. Layout
 # --------------------------------------------------
 
 fig <- fig |>
   layout(
-
     paper_bgcolor = "#FFFFFF",
     plot_bgcolor = "#FFFFFF",
 
@@ -470,8 +521,8 @@ fig <- fig |>
 
     title = list(
       text = paste0(
-        "<b>Median salaries generally rose across ",
-        "experience levels, 2020–2025</b>"
+        "<b>Median salaries vary by experience, ",
+        "company size, and role group</b>"
       ),
       x = 0.5,
       xanchor = "center",
@@ -486,13 +537,14 @@ fig <- fig |>
         text = "Year",
         standoff = 12
       ),
-      dtick = 1,
+      range = c(2019.8, 2025.2),
       tickmode = "linear",
+      tick0 = 2020,
+      dtick = 1,
       domain = c(0.05, 0.82),
       showgrid = FALSE,
       zeroline = FALSE,
-      linecolor = "#CBD5E1",
-      tickfont = list(size = 12)
+      linecolor = "#CBD5E1"
     ),
 
     yaxis = list(
@@ -500,17 +552,13 @@ fig <- fig |>
         text = "Median Annual Salary (USD)",
         standoff = 12
       ),
-
-      domain = c(0.44, 0.94),
+      domain = c(0.44, 0.88),
       rangemode = "tozero",
       tickprefix = "$",
       tickformat = ",.0f",
-
       showgrid = TRUE,
-      gridcolor = grid_color,
-      zeroline = FALSE,
-
-      tickfont = list(size = 12)
+      gridcolor = "#E7EDF5",
+      zeroline = FALSE
     ),
 
     legend = list(
@@ -519,54 +567,57 @@ fig <- fig |>
       xanchor = "left",
       yanchor = "top",
       bgcolor = "rgba(255,255,255,0)",
-      font = list(size = 12),
-      tracegroupgap = 8
+      font = list(size = 12)
     ),
 
     updatemenus = list(
       list(
-        buttons = buttons,
+        buttons = size_buttons,
         direction = "down",
         x = 0.05,
-        y = 0.98,
+        y = 1.03,
         xanchor = "left",
         yanchor = "top",
         showactive = TRUE,
-
+        active = 0,
         bgcolor = "#FFFFFF",
-        bordercolor = "#D4DEEB",
+        bordercolor = "#D4DEEB"
+      ),
 
-        font = list(
-          size = 12,
-          color = navy
-        )
+      list(
+        buttons = role_buttons,
+        direction = "down",
+        x = 0.27,
+        y = 1.03,
+        xanchor = "left",
+        yanchor = "top",
+        showactive = TRUE,
+        active = 0,
+        bgcolor = "#FFFFFF",
+        bordercolor = "#D4DEEB"
       )
     ),
 
     annotations = list(
-
       list(
         text = paste0(
           "Median annual salary in USD; ",
           "at least 5 records per plotted point"
         ),
         x = 0.05,
-        y = 1.03,
+        y = 0.94,
         xref = "paper",
         yref = "paper",
         xanchor = "left",
         showarrow = FALSE,
         font = list(
-          size = 16,
+          size = 15,
           color = muted
         )
       ),
 
       list(
-        text = paste0(
-          "<b>Salary Premiums ",
-          "Differ Across Company Sizes</b>"
-        ),
+        text = "<b>Salary Premiums Differ Across Company Sizes</b>",
         x = 0.5,
         y = 0.365,
         xref = "paper",
@@ -599,7 +650,7 @@ fig <- fig |>
     autosize = TRUE,
 
     margin = list(
-      t = 80,
+      t = 100,
       b = 40,
       l = 100,
       r = 35
@@ -613,7 +664,79 @@ fig <- fig |>
     displayModeBar = "hover"
   )
 
-# Display exactly once
+# --------------------------------------------------
+# 9. Synchronize both dropdowns
+# --------------------------------------------------
+
+trace_info <- list(
+  roles = trace_roles,
+  sizes = trace_sizes,
+  levels = trace_levels,
+  types = trace_types
+)
+
+js <- sprintf(
+"
+function(el, x) {
+
+  var gd = el;
+  var info = %s;
+
+  var selectedSize = 'All Companies';
+  var selectedRole = 'All Roles';
+
+  var sizeOptions = %s;
+
+  gd.on('plotly_buttonclicked', function(event) {
+
+    var label = event.button.label;
+
+    if (sizeOptions.indexOf(label) !== -1) {
+      selectedSize = label;
+    } else {
+      selectedRole = label;
+    }
+
+    var visible = [];
+    var showlegend = [];
+    var shownLevels = {};
+
+    for (var i = 0; i < info.roles.length; i++) {
+
+      var matches =
+        info.roles[i] === selectedRole &&
+        info.sizes[i] === selectedSize;
+
+      visible.push(matches);
+
+      var legend = false;
+
+      if (matches && info.types[i] === 'line') {
+
+        var level = info.levels[i];
+
+        if (!shownLevels[level]) {
+          legend = true;
+          shownLevels[level] = true;
+        }
+      }
+
+      showlegend.push(legend);
+    }
+
+    Plotly.restyle(gd, {
+      visible: visible,
+      showlegend: showlegend
+    });
+  });
+}
+",
+  jsonlite::toJSON(trace_info, auto_unbox = TRUE),
+  jsonlite::toJSON(sizes, auto_unbox = TRUE)
+)
+
+fig <- htmlwidgets::onRender(fig, js)
+
 fig
 ```
 
