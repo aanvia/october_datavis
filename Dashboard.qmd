@@ -1,0 +1,759 @@
+---
+title: "Dashboard"
+date: today
+format:
+  html:
+    page-layout: full
+    fig-responsive: true
+    self-contained: true
+    toc: true
+    code-fold: true
+    code-tools: true
+execute:
+  echo: false
+  warning: false
+  message: false
+editor: visual
+---
+
+```{r echo = FALSE}
+library(tidyverse)
+
+# Load data
+sal <- read_csv(paste0(
+  "https://stat.cmu.edu/~sgallagh/courses/mads-fall-2026/",
+  "datavis-36613/data/salaries.csv.gz"
+))
+```
+
+## Data Cleaning
+
+```{r echo = FALSE}
+sal <- sal |>
+  mutate(
+    experience_level = factor(
+      experience_level,
+      levels = c("EX", "SE", "MI", "EN"),
+      labels = c("Executive", "Senior", "Mid", "Entry")
+    ),
+    
+    remote = case_when(
+      remote_ratio == 0 ~ "On-Site",
+      remote_ratio == 50 ~ "Hybrid",
+      remote_ratio == 100 ~ "Fully remote"
+    ),
+    
+    remote = factor(
+      remote,
+      levels = c("On-Site", "Hybrid", "Fully remote")
+    ),
+    
+    log_salary = log(salary_in_usd)
+  ) |>
+  filter(employment_type == "FT")
+```
+
+## Job Title Grouping
+
+```{r echo = FALSE}
+sal <- sal |>
+  mutate(
+    role_group = case_when(
+
+      # Data Science
+      str_detect(
+        str_to_lower(job_title),
+        "data scientist|decision scientist|applied scientist"
+      ) ~ "Data Science",
+
+      # AI / Machine Learning
+      str_detect(
+        str_to_lower(job_title),
+        "machine learning|\\bml\\b|artificial intelligence|\\bai\\b|nlp|computer vision|deep learning|llm|prompt"
+      ) ~ "AI / Machine Learning",
+
+      # Data Engineering / Infrastructure
+      str_detect(
+        str_to_lower(job_title),
+        "data engineer|data architect|dataops|data infrastructure|data platform|data integration|etl|data pipeline|data developer"
+      ) ~ "Data Engineering / Infrastructure",
+
+      # Analytics / BI
+      str_detect(
+        str_to_lower(job_title),
+        "analyst|analytics|business intelligence|\\bbi\\b|power bi|data analysis|reporting|data visualization"
+      ) ~ "Analytics / BI",
+
+      # Research / Quantitative
+      str_detect(
+        str_to_lower(job_title),
+        "research|quantitative|statistician|statistical|computational scientist|economist|actuar|postdoctoral"
+      ) ~ "Research / Quantitative",
+
+      # Management / Product
+      str_detect(
+        str_to_lower(job_title),
+        "manager|director|head of|product manager|product owner|data lead|analytics lead"
+      ) ~ "Management / Product",
+
+      # Software / Systems Engineering
+      str_detect(
+        str_to_lower(job_title),
+        "software|developer|engineer|devops|platform|site reliability|systems|system engineer|architect|technical lead|tech lead"
+      ) ~ "Software / Systems Engineering",
+
+      TRUE ~ "Other"
+    )
+  )
+
+sal |>
+  count(role_group, sort = TRUE)
+```
+
+
+
+
+
+
+
+```{r fig-career-dashboard}
+#| echo: false
+#| output: asis
+#| out-width: 100%
+
+library(tidyverse)
+library(plotly)
+library(scales)
+library(htmltools)
+
+# ---------------------------------------
+# 1. Prepare data
+# ---------------------------------------
+
+experience_levels <- c(
+  "Entry", "Mid", "Senior", "Executive"
+)
+
+sizes <- c(
+  "All Companies", "Small", "Medium", "Large"
+)
+
+colors <- c(
+  Entry = "#249B83",
+  Mid = "#E58A45",
+  Senior = "#5278B7",
+  Executive = "#9B70AD"
+)
+
+salary_data <- sal |>
+  mutate(
+    experience_level = factor(
+      as.character(experience_level),
+      levels = experience_levels
+    ),
+    company_size = factor(
+      as.character(company_size),
+      levels = c("S", "M", "L"),
+      labels = c("Small", "Medium", "Large")
+    )
+  )
+
+# Annual median salary by company size
+career_size <- salary_data |>
+  group_by(
+    work_year,
+    company_size,
+    experience_level
+  ) |>
+  summarise(
+    median_salary = median(
+      salary_in_usd, na.rm = TRUE
+    ),
+    n = sum(!is.na(salary_in_usd)),
+    .groups = "drop"
+  ) |>
+  filter(n >= 5) |>
+  mutate(
+    company_size = as.character(company_size)
+  )
+
+# Overall annual median salaries
+career_all <- salary_data |>
+  group_by(work_year, experience_level) |>
+  summarise(
+    median_salary = median(
+      salary_in_usd, na.rm = TRUE
+    ),
+    n = sum(!is.na(salary_in_usd)),
+    .groups = "drop"
+  ) |>
+  filter(n >= 5) |>
+  mutate(company_size = "All Companies")
+
+career_plot <- bind_rows(
+  career_all,
+  career_size
+)
+
+# ---------------------------------------
+# 2. Salary progression table (2024–2025)
+# ---------------------------------------
+
+career_gains <- salary_data |>
+  filter(
+    work_year %in% c(2024, 2025),
+    !is.na(salary_in_usd)
+  ) |>
+  group_by(company_size, experience_level) |>
+  summarise(
+    median_salary = median(salary_in_usd),
+    n = n(),
+    .groups = "drop"
+  ) |>
+  mutate(
+    median_salary = if_else(
+      n >= 5,
+      median_salary,
+      NA_real_
+    )
+  ) |>
+  select(-n) |>
+  pivot_wider(
+    names_from = experience_level,
+    values_from = median_salary
+  ) |>
+  mutate(
+    Entry_Mid = (Mid - Entry) / Entry,
+    Mid_Senior = (Senior - Mid) / Mid,
+    Senior_Executive =
+      (Executive - Senior) / Senior
+  ) |>
+  arrange(company_size)
+
+# Formatting functions
+fmt_salary <- function(x) {
+  ifelse(
+    is.na(x),
+    "N/A",
+    dollar(x, accuracy = 1)
+  )
+}
+
+fmt_pct <- function(x) {
+  ifelse(
+    is.na(x),
+    "N/A",
+    percent(x, accuracy = 0.1)
+  )
+}
+
+# ---------------------------------------
+# 3. Interactive salary progression graph
+# ---------------------------------------
+
+fig <- plot_ly()
+
+trace_sizes <- character()
+trace_levels <- character()
+
+for (size in sizes) {
+
+  for (level in experience_levels) {
+
+    df <- career_plot |>
+      filter(
+        company_size == size,
+        experience_level == level
+      ) |>
+      arrange(work_year)
+
+    if (nrow(df) == 0) next
+
+    fig <- fig |>
+      add_trace(
+        data = df,
+        x = ~work_year,
+        y = ~median_salary,
+
+        type = "scatter",
+        mode = "lines+markers",
+
+        name = paste(level, "Level"),
+        legendgroup = level,
+
+        showlegend = size == "All Companies",
+        visible = size == "All Companies",
+
+        line = list(
+          color = unname(colors[level]),
+          width = 3
+        ),
+
+        marker = list(
+          color = unname(colors[level]),
+          size = 8
+        ),
+
+        text = ~paste0(
+          "<b>", experience_level, " Level</b>",
+          "<br>Year: ", work_year,
+          "<br>Company size: ", company_size,
+          "<br>Median salary: ",
+          dollar(median_salary),
+          "<br>Records: ", comma(n)
+        ),
+
+        hoverinfo = "text"
+      )
+
+    trace_sizes <- c(trace_sizes, size)
+    trace_levels <- c(trace_levels, level)
+  }
+}
+
+fig <- plotly_build(fig)
+
+# ---------------------------------------
+# 4. Professional salary progression table
+# ---------------------------------------
+
+table_headers <- c(
+  "<b>Company<br>Size</b>",
+  "<b>Entry<br>Level</b>",
+  "<b>Mid<br>Level</b>",
+  "<b>Senior<br>Level</b>",
+  "<b>Executive<br>Level</b>",
+  "<b>Entry to<br>Mid (%)</b>",
+  "<b>Mid to<br>Senior (%)</b>",
+  "<b>Senior to<br>Executive (%)</b>"
+)
+
+for (size in sizes) {
+
+  df <- if (size == "All Companies") {
+    career_gains
+  } else {
+    career_gains |>
+      filter(as.character(company_size) == size)
+  }
+
+  # Alternating white and gray-blue rows
+  row_colors <- if (size == "All Companies") {
+    c("#FFFFFF", "#F3F6FA", "#FFFFFF")
+  } else {
+    "#FFFFFF"
+  }
+
+  fig <- fig |>
+    add_trace(
+      type = "table",
+      inherit = FALSE,
+
+      domain = list(
+        x = c(0.02, 0.98),
+        y = c(0.07, 0.30)
+      ),
+
+      columnwidth = c(
+        105, 105, 105, 105,
+        110, 105, 110, 120
+      ),
+
+      header = list(
+        values = table_headers,
+        align = "center",
+
+        fill = list(
+          color = "#344256"
+        ),
+
+        font = list(
+          color = "white",
+          size = 12
+        ),
+
+        line = list(
+          color = "#DCE3EB",
+          width = 1
+        ),
+
+        height = 48
+      ),
+
+      cells = list(
+        values = list(
+          as.character(df$company_size),
+          fmt_salary(df$Entry),
+          fmt_salary(df$Mid),
+          fmt_salary(df$Senior),
+          fmt_salary(df$Executive),
+          fmt_pct(df$Entry_Mid),
+          fmt_pct(df$Mid_Senior),
+          fmt_pct(df$Senior_Executive)
+        ),
+
+        align = "center",
+
+        fill = list(
+          color = rep(
+            list(row_colors),
+            length(table_headers)
+          )
+        ),
+
+        font = list(
+          color = "#243247",
+          size = 12
+        ),
+
+        line = list(
+          color = "#E0E6EE",
+          width = 1
+        ),
+
+        height = 38
+      ),
+
+      visible = size == "All Companies",
+      showlegend = FALSE
+    )
+}
+
+# ---------------------------------------
+# 5. Dropdown controls graph and table
+# ---------------------------------------
+
+n_lines <- length(trace_sizes)
+
+buttons <- lapply(seq_along(sizes), function(i) {
+
+  size <- sizes[i]
+
+  line_visible <- trace_sizes == size
+  table_visible <- seq_along(sizes) == i
+
+  legend_visible <- rep(FALSE, n_lines)
+  shown_levels <- character()
+
+  for (j in seq_len(n_lines)) {
+
+    if (
+      line_visible[j] &&
+      !(trace_levels[j] %in% shown_levels)
+    ) {
+
+      legend_visible[j] <- TRUE
+
+      shown_levels <- c(
+        shown_levels,
+        trace_levels[j]
+      )
+    }
+  }
+
+  list(
+    label = size,
+    method = "update",
+
+    args = list(
+      list(
+        visible = c(
+          line_visible,
+          table_visible
+        ),
+
+        showlegend = c(
+          legend_visible,
+          rep(FALSE, length(sizes))
+        )
+      ),
+
+      list(
+        title = list(
+          text = paste0(
+            "Median Annual Salary by Experience Level, ",
+            "2020–2025"
+          ),
+          x = 0.02,
+          xanchor = "left",
+          font = list(
+            size = 19,
+            color = "#14213D"
+          )
+        )
+      )
+    )
+  )
+})
+
+# ---------------------------------------
+# 6. Dashboard layout
+# ---------------------------------------
+
+fig <- fig |>
+  layout(
+
+    title = list(
+      text = paste0(
+        "Median Annual Salary by Experience Level, ",
+        "2020–2025"
+      ),
+      x = 0.02,
+      xanchor = "left",
+      font = list(
+        size = 19,
+        color = "#14213D"
+      )
+    ),
+
+    paper_bgcolor = "#FFFFFF",
+    plot_bgcolor = "#FFFFFF",
+
+    xaxis = list(
+      title = "Year",
+      dtick = 1,
+      range = c(2019.8, 2025.2),
+
+      domain = c(0.07, 0.81),
+
+      tickfont = list(
+        color = "#52627A",
+        size = 12
+      ),
+
+      titlefont = list(
+        color = "#52627A",
+        size = 13
+      ),
+
+      gridcolor = "#E9EEF4",
+      zeroline = FALSE,
+      showline = FALSE
+    ),
+
+    yaxis = list(
+      title = "Median Annual Salary (USD)",
+      tickprefix = "$",
+      tickformat = ",.0f",
+
+      domain = c(0.47, 0.88),
+
+      tickfont = list(
+        color = "#52627A",
+        size = 12
+      ),
+
+      titlefont = list(
+        color = "#52627A",
+        size = 13
+      ),
+
+      gridcolor = "#E9EEF4",
+      zeroline = FALSE,
+      showline = FALSE
+    ),
+
+    legend = list(
+      x = 0.84,
+      y = 0.86,
+
+      bgcolor = "#FFFFFF",
+
+      font = list(
+        size = 12,
+        color = "#243247"
+      ),
+
+      tracegroupgap = 10
+    ),
+
+    updatemenus = list(
+      list(
+        buttons = buttons,
+        direction = "down",
+
+        x = 0.02,
+        y = 1.01,
+
+        xanchor = "left",
+        yanchor = "top",
+
+        showactive = TRUE,
+
+        bgcolor = "#FFFFFF",
+        bordercolor = "#CBD5E1",
+        borderwidth = 1,
+
+        font = list(
+          color = "#243247",
+          size = 12
+        )
+      )
+    ),
+
+    annotations = list(
+
+      # Graph subtitle
+      list(
+        text = paste0(
+          "Median annual salary in USD; ",
+          "minimum 5 records per plotted point"
+        ),
+
+        x = 0.02,
+        y = 0.94,
+
+        xref = "paper",
+        yref = "paper",
+
+        xanchor = "left",
+        showarrow = FALSE,
+
+        font = list(
+          size = 12,
+          color = "#64748B"
+        )
+      ),
+
+      # Table title
+      list(
+        text = paste0(
+          "<b>Career Salary Progression ",
+          "by Company Size, 2024–2025</b>"
+        ),
+
+        x = 0.5,
+        y = 0.385,
+
+        xref = "paper",
+        yref = "paper",
+
+        showarrow = FALSE,
+
+        font = list(
+          size = 18,
+          color = "#14213D"
+        )
+      ),
+
+      # Table subtitle
+      list(
+        text = paste0(
+          "Median annual salaries and percentage ",
+          "differences between experience levels"
+        ),
+
+        x = 0.5,
+        y = 0.35,
+
+        xref = "paper",
+        yref = "paper",
+
+        showarrow = FALSE,
+
+        font = list(
+          size = 12,
+          color = "#64748B"
+        )
+      ),
+
+      # Footnote
+      list(
+        text = paste0(
+          "Note: Table values combine 2024–2025 data. ",
+          "Percentage differences compare experience ",
+          "groups, not individual salary increases. ",
+          "N/A indicates insufficient data."
+        ),
+
+        x = 0.5,
+        y = 0.025,
+
+        xref = "paper",
+        yref = "paper",
+
+        showarrow = FALSE,
+
+        font = list(
+          size = 11,
+          color = "#64748B"
+        )
+      )
+    ),
+
+    height = 950,
+    autosize = TRUE,
+
+    margin = list(
+      t = 95,
+      b = 20,
+      l = 90,
+      r = 25
+    ),
+
+    hovermode = "closest"
+  ) |>
+  config(
+    responsive = TRUE,
+    displayModeBar = "hover"
+  )
+
+# ---------------------------------------
+# 7. Dashboard heading and display
+# ---------------------------------------
+
+dashboard <- tagList(
+
+  tags$div(
+    style = paste(
+      "font-family: Arial, sans-serif;",
+      "margin-bottom: 16px;"
+    ),
+
+    tags$h2(
+      style = paste(
+        "color: #14213D;",
+        "font-size: 30px;",
+        "font-weight: 700;",
+        "margin-bottom: 8px;"
+      ),
+
+      "Career Progression & Experience"
+    ),
+
+    tags$p(
+      style = paste(
+        "color: #64748B;",
+        "font-size: 15px;",
+        "line-height: 1.6;"
+      ),
+
+      paste(
+        "Explore median annual salaries across",
+        "experience levels and company sizes,",
+        "along with salary differences between",
+        "career stages."
+      )
+    )
+  ),
+
+  tags$div(
+    style = paste(
+      "border: 1px solid #E2E8F0;",
+      "border-radius: 10px;",
+      "padding: 12px;",
+      "background: #FFFFFF;"
+    ),
+
+    fig
+  )
+)
+
+browsable(dashboard)
+```
+
+
+
+
+
+
