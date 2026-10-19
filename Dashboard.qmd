@@ -1,6 +1,5 @@
 ---
 title: "Dashboard"
-date: today
 format:
   html:
     page-layout: full
@@ -8,7 +7,6 @@ format:
     self-contained: true
     toc: true
     code-fold: true
-    code-tools: true
 execute:
   echo: false
   warning: false
@@ -25,8 +23,6 @@ sal <- read_csv(paste0(
   "datavis-36613/data/salaries.csv.gz"
 ))
 ```
-
-## Data Cleaning
 
 ```{r echo = FALSE}
 sal <- sal |>
@@ -52,8 +48,6 @@ sal <- sal |>
   ) |>
   filter(employment_type == "FT")
 ```
-
-## Job Title Grouping
 
 ```{r echo = FALSE}
 sal <- sal |>
@@ -105,9 +99,6 @@ sal <- sal |>
       TRUE ~ "Other"
     )
   )
-
-sal |>
-  count(role_group, sort = TRUE)
 ```
 
 
@@ -118,86 +109,67 @@ sal |>
 
 ```{r fig-career-dashboard}
 #| echo: false
-#| output: asis
+#| warning: false
+#| message: false
+#| fig-width: 12
+#| fig-height: 10
 #| out-width: 100%
 
 library(tidyverse)
 library(plotly)
 library(scales)
-library(htmltools)
 
-# ---------------------------------------
+# --------------------------------------------------
 # 1. Prepare data
-# ---------------------------------------
+# --------------------------------------------------
 
-experience_levels <- c(
-  "Entry", "Mid", "Senior", "Executive"
-)
-
-sizes <- c(
-  "All Companies", "Small", "Medium", "Large"
-)
-
-colors <- c(
-  Entry = "#249B83",
-  Mid = "#E58A45",
-  Senior = "#5278B7",
-  Executive = "#9B70AD"
-)
+levels <- c("Entry", "Mid", "Senior", "Executive")
+sizes <- c("All Companies", "Small", "Medium", "Large")
 
 salary_data <- sal |>
   mutate(
     experience_level = factor(
       as.character(experience_level),
-      levels = experience_levels
+      levels = levels
     ),
     company_size = factor(
-      as.character(company_size),
+      company_size,
       levels = c("S", "M", "L"),
       labels = c("Small", "Medium", "Large")
     )
+  ) |>
+  filter(
+    !is.na(experience_level),
+    !is.na(company_size)
   )
 
-# Annual median salary by company size
+# Salary medians for individual company sizes
 career_size <- salary_data |>
-  group_by(
-    work_year,
-    company_size,
-    experience_level
-  ) |>
+  group_by(work_year, company_size, experience_level) |>
   summarise(
-    median_salary = median(
-      salary_in_usd, na.rm = TRUE
-    ),
+    median_salary = median(salary_in_usd, na.rm = TRUE),
     n = sum(!is.na(salary_in_usd)),
     .groups = "drop"
   ) |>
   filter(n >= 5) |>
-  mutate(
-    company_size = as.character(company_size)
-  )
+  mutate(company_size = as.character(company_size))
 
-# Overall annual median salaries
+# Overall salary medians
 career_all <- salary_data |>
   group_by(work_year, experience_level) |>
   summarise(
-    median_salary = median(
-      salary_in_usd, na.rm = TRUE
-    ),
+    median_salary = median(salary_in_usd, na.rm = TRUE),
     n = sum(!is.na(salary_in_usd)),
     .groups = "drop"
   ) |>
   filter(n >= 5) |>
   mutate(company_size = "All Companies")
 
-career_plot <- bind_rows(
-  career_all,
-  career_size
-)
+career_plot <- bind_rows(career_all, career_size)
 
-# ---------------------------------------
-# 2. Salary progression table (2024–2025)
-# ---------------------------------------
+# --------------------------------------------------
+# 2. Salary progression table (2024-2025)
+# --------------------------------------------------
 
 career_gains <- salary_data |>
   filter(
@@ -225,13 +197,41 @@ career_gains <- salary_data |>
   mutate(
     Entry_Mid = (Mid - Entry) / Entry,
     Mid_Senior = (Senior - Mid) / Mid,
-    Senior_Executive =
-      (Executive - Senior) / Senior
+    Senior_Executive = (Executive - Senior) / Senior
   ) |>
   arrange(company_size)
 
-# Formatting functions
-fmt_salary <- function(x) {
+# --------------------------------------------------
+# 3. Professional visual styling
+# --------------------------------------------------
+
+colors <- c(
+  Entry = "#168B78",
+  Mid = "#DF742D",
+  Senior = "#416FB9",
+  Executive = "#8752AA"
+)
+
+dash_styles <- c(
+  Entry = "solid",
+  Mid = "dash",
+  Senior = "dot",
+  Executive = "dashdot"
+)
+
+symbols <- c(
+  Entry = "circle",
+  Mid = "square",
+  Senior = "diamond",
+  Executive = "triangle-up"
+)
+
+navy <- "#172543"
+muted <- "#596D8B"
+grid_color <- "#E7EDF5"
+
+# Format missing values as N/A
+format_salary <- function(x) {
   ifelse(
     is.na(x),
     "N/A",
@@ -239,26 +239,27 @@ fmt_salary <- function(x) {
   )
 }
 
-fmt_pct <- function(x) {
+format_gain <- function(x) {
   ifelse(
-    is.na(x),
+    is.na(x) | !is.finite(x),
     "N/A",
     percent(x, accuracy = 0.1)
   )
 }
 
-# ---------------------------------------
-# 3. Interactive salary progression graph
-# ---------------------------------------
+# --------------------------------------------------
+# 4. Create Plotly figure
+# --------------------------------------------------
 
 fig <- plot_ly()
 
 trace_sizes <- character()
 trace_levels <- character()
 
+# Add one trace for each company size and level
 for (size in sizes) {
 
-  for (level in experience_levels) {
+  for (level in levels) {
 
     df <- career_plot |>
       filter(
@@ -274,33 +275,34 @@ for (size in sizes) {
         data = df,
         x = ~work_year,
         y = ~median_salary,
-
         type = "scatter",
         mode = "lines+markers",
 
         name = paste(level, "Level"),
         legendgroup = level,
 
-        showlegend = size == "All Companies",
         visible = size == "All Companies",
+        showlegend = size == "All Companies",
 
         line = list(
-          color = unname(colors[level]),
-          width = 3
+          color = colors[[level]],
+          width = 3,
+          dash = dash_styles[[level]]
         ),
 
         marker = list(
-          color = unname(colors[level]),
+          color = colors[[level]],
+          symbol = symbols[[level]],
           size = 8
         ),
 
         text = ~paste0(
-          "<b>", experience_level, " Level</b>",
-          "<br>Year: ", work_year,
-          "<br>Company size: ", company_size,
-          "<br>Median salary: ",
+          "<b>Year:</b> ", work_year,
+          "<br><b>Company size:</b> ", company_size,
+          "<br><b>Experience:</b> ", experience_level,
+          "<br><b>Median salary:</b> ",
           dollar(median_salary),
-          "<br>Records: ", comma(n)
+          "<br><b>Records:</b> ", comma(n)
         ),
 
         hoverinfo = "text"
@@ -311,23 +313,16 @@ for (size in sizes) {
   }
 }
 
+# --------------------------------------------------
+# 5. Add tables to the same Plotly figure
+# --------------------------------------------------
+
+# Build traces once before adding tables
 fig <- plotly_build(fig)
 
-# ---------------------------------------
-# 4. Professional salary progression table
-# ---------------------------------------
+n_lines <- length(fig$x$data)
 
-table_headers <- c(
-  "<b>Company<br>Size</b>",
-  "<b>Entry<br>Level</b>",
-  "<b>Mid<br>Level</b>",
-  "<b>Senior<br>Level</b>",
-  "<b>Executive<br>Level</b>",
-  "<b>Entry to<br>Mid (%)</b>",
-  "<b>Mid to<br>Senior (%)</b>",
-  "<b>Senior to<br>Executive (%)</b>"
-)
-
+# One table per company-size selection
 for (size in sizes) {
 
   df <- if (size == "All Companies") {
@@ -337,12 +332,10 @@ for (size in sizes) {
       filter(as.character(company_size) == size)
   }
 
-  # Alternating white and gray-blue rows
-  row_colors <- if (size == "All Companies") {
-    c("#FFFFFF", "#F3F6FA", "#FFFFFF")
-  } else {
-    "#FFFFFF"
-  }
+  row_colors <- rep(
+    c("#FFFFFF", "#F0F4F9"),
+    length.out = nrow(df)
+  )
 
   fig <- fig |>
     add_trace(
@@ -350,68 +343,57 @@ for (size in sizes) {
       inherit = FALSE,
 
       domain = list(
-        x = c(0.02, 0.98),
-        y = c(0.07, 0.30)
-      ),
-
-      columnwidth = c(
-        105, 105, 105, 105,
-        110, 105, 110, 120
+        x = c(0, 1),
+        y = c(0.04, 0.27)
       ),
 
       header = list(
-        values = table_headers,
-        align = "center",
-
-        fill = list(
-          color = "#344256"
+        values = c(
+          "<b>Company<br>Size</b>",
+          "<b>Entry<br>Level</b>",
+          "<b>Mid<br>Level</b>",
+          "<b>Senior<br>Level</b>",
+          "<b>Executive<br>Level</b>",
+          "<b>Entry to<br>Mid (%)</b>",
+          "<b>Mid to<br>Senior (%)</b>",
+          "<b>Senior to<br>Executive (%)</b>"
         ),
 
+        align = "center",
+        fill = list(color = "#34445C"),
         font = list(
-          color = "white",
+          color = "#FFFFFF",
           size = 12
         ),
-
-        line = list(
-          color = "#DCE3EB",
-          width = 1
-        ),
-
+        line = list(color = "#DCE4EF"),
         height = 48
       ),
 
       cells = list(
         values = list(
           as.character(df$company_size),
-          fmt_salary(df$Entry),
-          fmt_salary(df$Mid),
-          fmt_salary(df$Senior),
-          fmt_salary(df$Executive),
-          fmt_pct(df$Entry_Mid),
-          fmt_pct(df$Mid_Senior),
-          fmt_pct(df$Senior_Executive)
+          format_salary(df$Entry),
+          format_salary(df$Mid),
+          format_salary(df$Senior),
+          format_salary(df$Executive),
+          format_gain(df$Entry_Mid),
+          format_gain(df$Mid_Senior),
+          format_gain(df$Senior_Executive)
         ),
 
         align = "center",
-
         fill = list(
-          color = rep(
-            list(row_colors),
-            length(table_headers)
-          )
-        ),
-
+            color = rep(
+              list(row_colors),
+              8
+            )
+          ),
         font = list(
-          color = "#243247",
+          color = navy,
           size = 12
         ),
-
-        line = list(
-          color = "#E0E6EE",
-          width = 1
-        ),
-
-        height = 38
+        line = list(color = "#DCE4EF"),
+        height = 37
       ),
 
       visible = size == "All Companies",
@@ -419,19 +401,18 @@ for (size in sizes) {
     )
 }
 
-# ---------------------------------------
-# 5. Dropdown controls graph and table
-# ---------------------------------------
-
-n_lines <- length(trace_sizes)
+# --------------------------------------------------
+# 6. Dropdown controls graph and table
+# --------------------------------------------------
 
 buttons <- lapply(seq_along(sizes), function(i) {
 
-  size <- sizes[i]
+  selected_size <- sizes[i]
 
-  line_visible <- trace_sizes == size
+  line_visible <- trace_sizes == selected_size
   table_visible <- seq_along(sizes) == i
 
+  # Only show one legend item per experience level
   legend_visible <- rep(FALSE, n_lines)
   shown_levels <- character()
 
@@ -452,7 +433,7 @@ buttons <- lapply(seq_along(sizes), function(i) {
   }
 
   list(
-    label = size,
+    label = selected_size,
     method = "update",
 
     args = list(
@@ -466,294 +447,205 @@ buttons <- lapply(seq_along(sizes), function(i) {
           legend_visible,
           rep(FALSE, length(sizes))
         )
-      ),
-
-      list(
-        title = list(
-          text = paste0(
-            "Median Annual Salary by Experience Level, ",
-            "2020–2025"
-          ),
-          x = 0.02,
-          xanchor = "left",
-          font = list(
-            size = 19,
-            color = "#14213D"
-          )
-        )
       )
     )
   )
 })
 
-# ---------------------------------------
-# 6. Dashboard layout
-# ---------------------------------------
+# --------------------------------------------------
+# 7. Final combined chart and table
+# --------------------------------------------------
 
 fig <- fig |>
   layout(
 
-    title = list(
-      text = paste0(
-        "Median Annual Salary by Experience Level, ",
-        "2020–2025"
-      ),
-      x = 0.02,
-      xanchor = "left",
-      font = list(
-        size = 19,
-        color = "#14213D"
-      )
-    ),
-
     paper_bgcolor = "#FFFFFF",
     plot_bgcolor = "#FFFFFF",
 
+    font = list(
+      family = "Arial, sans-serif",
+      color = navy,
+      size = 13
+    ),
+
+    title = list(
+      text = paste0(
+        "<b>Median salaries generally rose across ",
+        "experience levels, 2020–2025</b>"
+      ),
+      x = 0.5,
+      xanchor = "center",
+      font = list(
+        size = 20,
+        color = navy
+      )
+    ),
+
     xaxis = list(
-      title = "Year",
+      title = list(
+        text = "Year",
+        standoff = 12
+      ),
       dtick = 1,
-      range = c(2019.8, 2025.2),
-
-      domain = c(0.07, 0.81),
-
-      tickfont = list(
-        color = "#52627A",
-        size = 12
-      ),
-
-      titlefont = list(
-        color = "#52627A",
-        size = 13
-      ),
-
-      gridcolor = "#E9EEF4",
+      tickmode = "linear",
+      domain = c(0.05, 0.82),
+      showgrid = FALSE,
       zeroline = FALSE,
-      showline = FALSE
+      linecolor = "#CBD5E1",
+      tickfont = list(size = 12)
     ),
 
     yaxis = list(
-      title = "Median Annual Salary (USD)",
+      title = list(
+        text = "Median Annual Salary (USD)",
+        standoff = 12
+      ),
+
+      domain = c(0.44, 0.84),
+      rangemode = "tozero",
       tickprefix = "$",
       tickformat = ",.0f",
 
-      domain = c(0.47, 0.88),
-
-      tickfont = list(
-        color = "#52627A",
-        size = 12
-      ),
-
-      titlefont = list(
-        color = "#52627A",
-        size = 13
-      ),
-
-      gridcolor = "#E9EEF4",
+      showgrid = TRUE,
+      gridcolor = grid_color,
       zeroline = FALSE,
-      showline = FALSE
+
+      tickfont = list(size = 12)
     ),
 
     legend = list(
       x = 0.84,
-      y = 0.86,
-
-      bgcolor = "#FFFFFF",
-
-      font = list(
-        size = 12,
-        color = "#243247"
-      ),
-
-      tracegroupgap = 10
+      y = 0.84,
+      xanchor = "left",
+      yanchor = "top",
+      bgcolor = "rgba(255,255,255,0)",
+      font = list(size = 12),
+      tracegroupgap = 8
     ),
 
     updatemenus = list(
       list(
         buttons = buttons,
         direction = "down",
-
-        x = 0.02,
-        y = 1.01,
-
+        x = 0.05,
+        y = 0.94,
         xanchor = "left",
         yanchor = "top",
-
         showactive = TRUE,
 
         bgcolor = "#FFFFFF",
-        bordercolor = "#CBD5E1",
-        borderwidth = 1,
+        bordercolor = "#D4DEEB",
 
         font = list(
-          color = "#243247",
-          size = 12
+          size = 12,
+          color = navy
         )
       )
     ),
 
     annotations = list(
 
-      # Graph subtitle
       list(
         text = paste0(
           "Median annual salary in USD; ",
-          "minimum 5 records per plotted point"
+          "at least 5 records per plotted point"
         ),
-
-        x = 0.02,
-        y = 0.94,
-
+        x = 0.05,
+        y = 0.875,
         xref = "paper",
         yref = "paper",
-
         xanchor = "left",
         showarrow = FALSE,
-
         font = list(
           size = 12,
-          color = "#64748B"
+          color = muted
         )
       ),
 
-      # Table title
       list(
         text = paste0(
-          "<b>Career Salary Progression ",
-          "by Company Size, 2024–2025</b>"
+          "<b>Mid-to-senior salary premiums ",
+          "differ across company sizes</b>"
         ),
-
         x = 0.5,
-        y = 0.385,
-
+        y = 0.365,
         xref = "paper",
         yref = "paper",
-
         showarrow = FALSE,
-
         font = list(
           size = 18,
-          color = "#14213D"
+          color = navy
         )
       ),
 
-      # Table subtitle
       list(
         text = paste0(
-          "Median annual salaries and percentage ",
-          "differences between experience levels"
+          "2024–2025 salary medians and ",
+          "career-stage differences"
         ),
-
         x = 0.5,
-        y = 0.35,
-
+        y = 0.325,
         xref = "paper",
         yref = "paper",
-
         showarrow = FALSE,
-
         font = list(
           size = 12,
-          color = "#64748B"
-        )
-      ),
-
-      # Footnote
-      list(
-        text = paste0(
-          "Note: Table values combine 2024–2025 data. ",
-          "Percentage differences compare experience ",
-          "groups, not individual salary increases. ",
-          "N/A indicates insufficient data."
-        ),
-
-        x = 0.5,
-        y = 0.025,
-
-        xref = "paper",
-        yref = "paper",
-
-        showarrow = FALSE,
-
-        font = list(
-          size = 11,
-          color = "#64748B"
+          color = muted
         )
       )
     ),
 
-    height = 950,
+    height = 1100,
     autosize = TRUE,
 
     margin = list(
-      t = 95,
-      b = 20,
-      l = 90,
-      r = 25
+      t = 100,
+      b = 40,
+      l = 100,
+      r = 35
     ),
 
     hovermode = "closest"
   ) |>
   config(
     responsive = TRUE,
+    displaylogo = FALSE,
     displayModeBar = "hover"
   )
 
-# ---------------------------------------
-# 7. Dashboard heading and display
-# ---------------------------------------
-
-dashboard <- tagList(
-
-  tags$div(
-    style = paste(
-      "font-family: Arial, sans-serif;",
-      "margin-bottom: 16px;"
-    ),
-
-    tags$h2(
-      style = paste(
-        "color: #14213D;",
-        "font-size: 30px;",
-        "font-weight: 700;",
-        "margin-bottom: 8px;"
-      ),
-
-      "Career Progression & Experience"
-    ),
-
-    tags$p(
-      style = paste(
-        "color: #64748B;",
-        "font-size: 15px;",
-        "line-height: 1.6;"
-      ),
-
-      paste(
-        "Explore median annual salaries across",
-        "experience levels and company sizes,",
-        "along with salary differences between",
-        "career stages."
-      )
-    )
-  ),
-
-  tags$div(
-    style = paste(
-      "border: 1px solid #E2E8F0;",
-      "border-radius: 10px;",
-      "padding: 12px;",
-      "background: #FFFFFF;"
-    ),
-
-    fig
-  )
-)
-
-browsable(dashboard)
+# Display exactly once
+fig
 ```
 
 
 
+### Key Findings
 
+The salary data indicate that median compensation generally increases
+with experience level. However, the size of the premium varies
+substantially across company sizes.
+
+Small companies show a 48.1% difference between mid-level and senior
+median salaries, compared with 24.6% at medium companies and 22.5%
+at large companies.
+
+These differences suggest that company size may influence the
+compensation associated with career advancement, although they do not
+represent individual salary increases.
+
+### Methodology and Limitations
+
+Salary figures represent median annual compensation in USD.
+
+- **Time period:** 2020–2025 for the chart; 2024–2025 for the table.
+- **Grouping:** Experience level, company size, and year.
+- **Minimum sample:** Five valid salary observations per chart data point.
+- **Salary premiums:** Percentage differences between experience-group medians.
+- **N/A:** Insufficient observations or unavailable data.
+
+**Interpretation:** Salary premiums compare different employee groups
+rather than tracking salary increases for individual employees.
+Changes over time may also reflect changes in the composition of
+the dataset.
 
 
