@@ -476,7 +476,7 @@ fig <- fig |>
       x = 0.5,
       xanchor = "center",
       font = list(
-        size = 20,
+        size = 25,
         color = navy
       )
     ),
@@ -501,7 +501,7 @@ fig <- fig |>
         standoff = 12
       ),
 
-      domain = c(0.44, 0.84),
+      domain = c(0.44, 0.94),
       rangemode = "tozero",
       tickprefix = "$",
       tickformat = ",.0f",
@@ -528,7 +528,7 @@ fig <- fig |>
         buttons = buttons,
         direction = "down",
         x = 0.05,
-        y = 0.94,
+        y = 0.98,
         xanchor = "left",
         yanchor = "top",
         showactive = TRUE,
@@ -551,21 +551,21 @@ fig <- fig |>
           "at least 5 records per plotted point"
         ),
         x = 0.05,
-        y = 0.875,
+        y = 1.03,
         xref = "paper",
         yref = "paper",
         xanchor = "left",
         showarrow = FALSE,
         font = list(
-          size = 12,
+          size = 16,
           color = muted
         )
       ),
 
       list(
         text = paste0(
-          "<b>Mid-to-senior salary premiums ",
-          "differ across company sizes</b>"
+          "<b>Salary Premiums ",
+          "Differ Across Company Sizes</b>"
         ),
         x = 0.5,
         y = 0.365,
@@ -573,7 +573,7 @@ fig <- fig |>
         yref = "paper",
         showarrow = FALSE,
         font = list(
-          size = 18,
+          size = 22,
           color = navy
         )
       ),
@@ -589,7 +589,7 @@ fig <- fig |>
         yref = "paper",
         showarrow = FALSE,
         font = list(
-          size = 12,
+          size = 15,
           color = muted
         )
       )
@@ -599,7 +599,7 @@ fig <- fig |>
     autosize = TRUE,
 
     margin = list(
-      t = 100,
+      t = 80,
       b = 40,
       l = 100,
       r = 35
