@@ -476,21 +476,13 @@ for (role in roles) {
     df <- career_gains |>
       filter(
         role_group == role,
-        if (size == "All Companies") {
-          company_size %in% c("Small", "Medium", "Large")
-        } else {
-          company_size == size
-        }
+        company_size == size
       ) |>
       arrange(match(company_size, sizes))
 
     if (nrow(df) == 0) {
       df <- tibble(
-        company_size = if (size == "All Companies") {
-          c("Small", "Medium", "Large")
-        } else {
-          size
-        },
+        company_size = size,
         Entry = NA_real_,
         Mid = NA_real_,
         Senior = NA_real_,
